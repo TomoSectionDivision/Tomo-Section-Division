@@ -1,6 +1,6 @@
 [package]
 name = "tomo"
-version = "0.3.3"
+version = "0.3.4"
 description = "TOMO — Shape the body. Cut the section. Hear the song."
 authors = ["TOMO"]
 edition = "2021"
