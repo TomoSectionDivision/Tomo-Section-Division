@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/TomoSectionDivision/Tomo-Section-Division/releases"><img src="https://img.shields.io/badge/version-0.3.2-8a3030?style=flat-square" alt="0.3.2"></a>
+  <a href="https://github.com/TomoSectionDivision/Tomo-Section-Division/releases"><img src="https://img.shields.io/badge/version-0.3.3-8a3030?style=flat-square" alt="0.3.3"></a>
   <img src="https://img.shields.io/badge/Tauri-2-24c8db?style=flat-square&logo=tauri&logoColor=white" alt="Tauri 2">
   <img src="https://img.shields.io/badge/Windows-x64-0078d4?style=flat-square&logo=windows&logoColor=white" alt="Windows">
   <img src="https://img.shields.io/badge/data-local%20only-3ff0a5?style=flat-square" alt="local only">
@@ -67,7 +67,7 @@ npm run build:win
 Gotowy NSIS znajdziesz w:
 
 ```text
-src-tauri/target/release/bundle/nsis/TOMO_0.3.2_x64-setup.exe
+src-tauri/target/release/bundle/nsis/TOMO_0.3.3_x64-setup.exe
 ```
 
 (ścieżka względem katalogu projektu — u Ciebie tam, gdzie sklonowałeś repo)
