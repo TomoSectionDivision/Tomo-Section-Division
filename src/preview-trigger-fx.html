@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>TOMO — Trigger FX concepts</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap');
+  :root{
+    --bg:#050505; --ink:#e8e8e8; --dim:#6a6a6a;
+    --mint:#3ff0a5; --cyan:#35d8e8; --orange:#ff7a2f; --yellow:#ffe14d;
+    --pink:#ff2d8a; --red:#ff3b30; --white:#f2f2f2; --air:#9aa0a6;
+    --mono:"IBM Plex Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);font-family:var(--mono)}
+  .page{max-width:1180px;margin:0 auto;padding:32px 22px 80px}
+  h1{font-size:11px;letter-spacing:.42em;color:var(--red);margin-bottom:8px}
+  .sub{font-size:10px;letter-spacing:.06em;color:var(--dim);line-height:1.7;margin-bottom:28px;max-width:820px}
+  .hint{font-size:9px;letter-spacing:.16em;color:#555;margin-bottom:36px}
+  .hint b{color:var(--orange);font-weight:400}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:28px 22px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{}
+  .ct{font-size:10px;letter-spacing:.28em;color:var(--orange);margin-bottom:6px}
+  .cd{font-size:9px;letter-spacing:.04em;color:#777;line-height:1.55;margin-bottom:10px;min-height:2.8em}
+  .stage{
+    position:relative;height:260px;border:1px solid #3a1515;background:#000;overflow:hidden;cursor:crosshair;
+  }
+  .stage canvas{display:block;width:100%;height:100%}
+  .stage:hover{border-color:#6a2020}
+  .tags{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+  .tags span{font-size:8px;letter-spacing:.12em;padding:3px 7px;border:1px solid #2a2a2a;color:#555}
+  .tags .g{border-color:rgba(63,240,165,.4);color:var(--mint)}
+  .tags .b{border-color:rgba(255,122,47,.4);color:var(--orange)}
+  .now{margin-top:40px;padding-top:24px;border-top:1px solid #222}
+  .now .ct{color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>TRIGGER FX · CONCEPTS</h1>
+  <p class="sub">
+    Bodies zostają w stylu z <code>tomo/index.html</code> (stipple + ring).
+    Tu tylko efekty <b>przy wywołaniu</b> — moment cut / note-on.
+    Kliknij stage albo poczekaj na auto-pulse.
+  </p>
+  <p class="hint">AKTUALNIE W APP: <b>cienkie needle sparks</b> + dither ring na cut point · za słabe przy gęstym groove</p>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="now">
+    <div class="ct">REKOMENDACJA</div>
+    <p class="cd" style="max-width:780px;min-height:0">
+      Najlepszy stos: <b style="color:var(--mint);font-weight:400">A Pixel Eject</b> jako bazowy burst z środka body
+      + <b style="color:var(--mint);font-weight:400">D Cut Spray</b> na punkcie przecięcia meridianu
+      + role scaling (PULSE = mało/ciężko, AIR = dużo/lekko).
+      Unikać pełnego glow — trzymać 1×1 / 2×2 px i krótkie life (120–280ms).
+    </p>
+  </div>
+</div>
+
+<script>
+const ROLES = {
+  PULSE:      { col:'#f2f2f2', wire:'#ffffff', label:'PULSE' },
+  FOUNDATION: { col:'#ff7a2f', wire:'#ffa066', label:'FOUNDATION' },
+  COLOR:      { col:'#3ff0a5', wire:'#8ff9d0', label:'COLOR' },
+  TENSION:    { col:'#35d8e8', wire:'#8aecf5', label:'TENSION' },
+  AIR:        { col:'#9aa0a6', wire:'#c3c8cc', label:'AIR' },
+};
+const ROLE_KEYS = Object.keys(ROLES);
+
+function hexA(hex,a){
+  const h=hex.slice(1);
+  const n=parseInt(h.length===3?h[0]+h[0]+h[1]+h[1]+h[2]+h[2]:h,16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+
+function makeStipple(seed, n=42){
+  let rnd=seed; const R=()=>{rnd=(rnd*16807)%2147483647; return rnd/2147483647;};
+  const p=[];
+  for(let i=0;i<n;i++){
+    const a=R()*2*Math.PI, rr=0.34+0.66*Math.pow(R(),0.35);
+    p.push([Math.cos(a)*rr, Math.sin(a)*rr, R()]);
+  }
+  return p;
+}
+
+const CONCEPTS = [
+  {
+    id:'A', title:'A · PIXEL EJECT',
+    desc:'Ciało wyrzuca własne stipple-piksele na zewnątrz — jakby masa się rozpadła na hit. Najbardziej „cząsteczkowy” i spójny z body.',
+    tags:[['g','bazowy burst'],['g','rola = kolor'],['b','life ~220ms']],
+    spawn(fx, body, cut){
+      const n = body.role==='AIR' ? 28 : body.role==='PULSE' ? 14 : 20;
+      for(let i=0;i<n;i++){
+        const a=Math.random()*Math.PI*2;
+        const sp=40+Math.random()*110+(body.r*80);
+        const sz=Math.random()>0.7?2:1;
+        fx.push({
+          kind:'pix', x:body.x, y:body.y,
+          vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+          sz, col: body.hy?'#ff2d8a':ROLES[body.role].col,
+          life:0.18+Math.random()*0.14, at:performance.now()/1000
+        });
+      }
+    }
+  },
+  {
+    id:'B', title:'B · NEEDLE STARBURST',
+    desc:'Upgrade obecnych sparks: dłuższe igły, więcej, z białą końcówką + chroma offset. Czytelne nawet w clutterze.',
+    tags:[['g','upgrade current'],['b','czytelne'],['b','life ~160ms']],
+    spawn(fx, body){
+      const n=8+Math.min(6,(body.grain|0));
+      for(let i=0;i<n;i++){
+        const a=(i/n)*Math.PI*2 + Math.random()*0.2;
+        fx.push({
+          kind:'needle', x:body.x, y:body.y, a,
+          len:16+Math.random()*28+(body.r*40),
+          col: body.hy?'#ff2d8a':ROLES[body.role].col,
+          life:0.14+Math.random()*0.08, at:performance.now()/1000
+        });
+      }
+    }
+  },
+  {
+    id:'C', title:'C · RING SHATTER',
+    desc:'Obrys body pęka w segmenty i odlatuje. Dobry na FOUNDATION / COLOR — ciężki „impact”, mało szumu.',
+    tags:[['g','impact'],['b','mało clutter'],['b','life ~280ms']],
+    spawn(fx, body){
+      const segs=10;
+      for(let i=0;i<segs;i++){
+        const a=(i/segs)*Math.PI*2;
+        const r=body.r;
+        fx.push({
+          kind:'arc', x:body.x, y:body.y, a, r,
+          vx:Math.cos(a)*(30+Math.random()*40),
+          vy:Math.sin(a)*(30+Math.random()*40),
+          col:ROLES[body.role].wire,
+          life:0.22+Math.random()*0.1, at:performance.now()/1000
+        });
+      }
+      // few core pixels
+      for(let i=0;i<8;i++){
+        const a=Math.random()*Math.PI*2, sp=20+Math.random()*50;
+        fx.push({kind:'pix',x:body.x,y:body.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,
+          sz:2,col:ROLES[body.role].col,life:0.15,at:performance.now()/1000});
+      }
+    }
+  },
+  {
+    id:'D', title:'D · CUT SPRAY',
+    desc:'Burst nie ze środka body, tylko z punktu cut (meridian × body). Pokazuje skąd poszła nuta — muzycznie czytelne.',
+    tags:[['g','z cut point'],['g','note feedback'],['b','life ~200ms']],
+    spawn(fx, body, cut){
+      const cx=cut.x, cy=cut.y;
+      const n=16;
+      for(let i=0;i<n;i++){
+        const a=cut.theta + Math.PI + (Math.random()-0.5)*1.4;
+        const sp=50+Math.random()*90;
+        fx.push({
+          kind:'pix', x:cx, y:cy,
+          vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+          sz:Math.random()>0.6?2:1,
+          col: i%3===0 ? '#ffe14d' : ROLES[body.role].col,
+          life:0.16+Math.random()*0.12, at:performance.now()/1000
+        });
+      }
+      // square flash at cut
+      fx.push({kind:'box', x:cx, y:cy, s:10, col:'#3ff0a5', life:0.12, at:performance.now()/1000});
+    }
+  },
+  {
+    id:'E', title:'E · ROLE PARTICLES',
+    desc:'Każda rola inny burst: PULSE = ciężkie bloki, FOUNDATION = pomarańczowe odłamki w dół, COLOR = glyph spray, TENSION = igły, AIR = wolny pył.',
+    tags:[['g','character'],['b','więcej kodu'],['b','life per role']],
+    spawn(fx, body){
+      const role=body.role, now=performance.now()/1000;
+      if(role==='PULSE'){
+        for(let i=0;i<7;i++){
+          const a=-Math.PI/2+(Math.random()-0.5)*0.8;
+          fx.push({kind:'block',x:body.x,y:body.y,vx:Math.cos(a)*(20+Math.random()*40),vy:Math.sin(a)*(40+Math.random()*60)-20,
+            s:3+((Math.random()*3)|0),col:'#f2f2f2',life:0.2,at:now});
+        }
+      } else if(role==='FOUNDATION'){
+        for(let i=0;i<14;i++){
+          fx.push({kind:'pix',x:body.x+(Math.random()-0.5)*body.r*0.4,y:body.y,
+            vx:(Math.random()-0.5)*40, vy:40+Math.random()*80,
+            sz:Math.random()>0.5?2:1,col:'#ff7a2f',life:0.25,at:now});
+        }
+      } else if(role==='COLOR'){
+        const g='░▒▓#*+';
+        for(let i=0;i<12;i++){
+          const a=Math.random()*Math.PI*2, sp=30+Math.random()*70;
+          fx.push({kind:'glyph',x:body.x,y:body.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,
+            ch:g[i%g.length],col:'#3ff0a5',life:0.28,at:now});
+        }
+      } else if(role==='TENSION'){
+        for(let i=0;i<10;i++){
+          const a=Math.random()*Math.PI*2;
+          fx.push({kind:'needle',x:body.x,y:body.y,a,len:20+Math.random()*30,col:'#35d8e8',life:0.14,at:now});
+        }
+      } else {
+        for(let i=0;i<18;i++){
+          const a=Math.random()*Math.PI*2, sp=15+Math.random()*35;
+          fx.push({kind:'pix',x:body.x,y:body.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-20,
+            sz:1,col:'#9aa0a6',life:0.35+Math.random()*0.15,at:now});
+        }
+      }
+    }
+  },
+  {
+    id:'F', title:'F · SHOCKWAVE + CORE',
+    desc:'Jeden ekspandujący pixel-ring + krótki white core flash. Minimalny, rytmiczny — dobra para z A lub D, nie solo.',
+    tags:[['g','pulse feel'],['b','stack z A/D'],['b','life ~180ms']],
+    spawn(fx, body){
+      const now=performance.now()/1000;
+      fx.push({kind:'shock',x:body.x,y:body.y,r0:body.r*0.6,r1:body.r*2.4,
+        col:ROLES[body.role].wire,life:0.2,at:now});
+      for(let i=0;i<6;i++){
+        const a=Math.random()*Math.PI*2, sp=10+Math.random()*25;
+        fx.push({kind:'pix',x:body.x,y:body.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,
+          sz:2,col:'#ffffff',life:0.1,at:now});
+      }
+    }
+  },
+];
+
+function drawBody(ctx, b, hot){
+  const rr=b.r*(0.988+0.012*Math.sin(performance.now()/1000*1.1+b.seed*0.001));
+  const col=b.hy?'#ff2d8a':ROLES[b.role].col;
+  const wire=b.hy?'#ff2d8a':ROLES[b.role].wire;
+  ctx.save();
+  ctx.translate(b.x,b.y);
+  ctx.fillStyle=col;
+  ctx.globalAlpha=0.55+hot*0.35;
+  for(const [sx,sy,v] of b.stipple){
+    const sz=v>0.75?2:1;
+    ctx.fillRect((sx*rr)|0,(sy*rr)|0,sz,sz);
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+  ctx.strokeStyle=hexA(wire,0.45+hot*0.5);
+  ctx.lineWidth=1;
+  if(hot>0.35){
+    const s=rr+2; ctx.strokeRect(b.x-s,b.y-s,s*2,s*2);
+  }else{
+    ctx.beginPath(); ctx.arc(b.x,b.y,rr,0,Math.PI*2); ctx.stroke();
+  }
+  if(hot>0.02){
+    ctx.strokeStyle=hexA(wire,hot*0.5);
+    ctx.beginPath(); ctx.arc(b.x,b.y,rr+(1-hot)*18,0,Math.PI*2); ctx.stroke();
+  }
+  ctx.font='9px IBM Plex Mono,monospace';
+  ctx.fillStyle=hexA(col,0.7);
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  ctx.fillText(b.role+' 01', b.x+rr+10, b.y-2);
+  return rr;
+}
+
+function drawFx(ctx, fx, now){
+  let w=0;
+  for(let i=0;i<fx.length;i++){
+    const p=fx[i];
+    const age=(now-p.at)/p.life;
+    if(age>=1) continue;
+    fx[w++]=p;
+    const al=1-age;
+    const t=age;
+
+    if(p.kind==='pix'){
+      const x=p.x+p.vx*t, y=p.y+p.vy*t;
+      ctx.globalAlpha=al;
+      ctx.fillStyle=p.col;
+      ctx.fillRect(x|0,y|0,p.sz,p.sz);
+      if(al>0.55){ ctx.fillStyle='#fff'; ctx.fillRect((x+(p.sz>1?1:0))|0,y|0,1,1); }
+    }
+    else if(p.kind==='needle'){
+      const reach=p.len*(0.3+t*0.95);
+      const tx=p.x+Math.cos(p.a)*reach, ty=p.y+Math.sin(p.a)*reach;
+      ctx.globalAlpha=al*0.9;
+      ctx.strokeStyle=p.col; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(tx,ty); ctx.stroke();
+      ctx.fillStyle='#fff'; ctx.fillRect(tx|0,ty|0,1,1);
+      ctx.strokeStyle=hexA('#ff3b30',al*0.35);
+      ctx.beginPath(); ctx.moveTo(p.x+1,p.y); ctx.lineTo(tx+1,ty); ctx.stroke();
+    }
+    else if(p.kind==='arc'){
+      const x=p.x+p.vx*t, y=p.y+p.vy*t;
+      ctx.globalAlpha=al*0.85;
+      ctx.strokeStyle=p.col; ctx.lineWidth=1.2;
+      ctx.beginPath();
+      ctx.arc(x,y, p.r*(1+t*0.15), p.a-0.28, p.a+0.28);
+      ctx.stroke();
+    }
+    else if(p.kind==='box'){
+      const s=p.s*(1+t*0.6);
+      ctx.globalAlpha=al;
+      ctx.strokeStyle=p.col; ctx.lineWidth=1;
+      ctx.strokeRect(p.x-s/2,p.y-s/2,s,s);
+    }
+    else if(p.kind==='block'){
+      const x=p.x+p.vx*t, y=p.y+p.vy*t + 40*t*t;
+      ctx.globalAlpha=al;
+      ctx.fillStyle=p.col;
+      ctx.fillRect(x|0,y|0,p.s,p.s);
+    }
+    else if(p.kind==='glyph'){
+      const x=p.x+p.vx*t, y=p.y+p.vy*t;
+      ctx.globalAlpha=al*0.9;
+      ctx.fillStyle=p.col;
+      ctx.font='11px IBM Plex Mono,monospace';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(p.ch, x, y);
+    }
+    else if(p.kind==='shock'){
+      const r=p.r0+(p.r1-p.r0)*t;
+      const steps=Math.max(12,(r*0.9)|0);
+      ctx.globalAlpha=al*0.7;
+      ctx.fillStyle=p.col;
+      for(let k=0;k<steps;k++){
+        const a=(k/steps)*Math.PI*2;
+        if(((k+((t*8)|0))%3)===0) continue;
+        ctx.fillRect((p.x+Math.cos(a)*r)|0,(p.y+Math.sin(a)*r)|0,1,1);
+      }
+    }
+    ctx.globalAlpha=1;
+  }
+  fx.length=w;
+}
+
+function mountConcept(c, idx){
+  const card=document.createElement('div');
+  card.className='card';
+  card.innerHTML=`
+    <div class="ct">${c.title}</div>
+    <div class="cd">${c.desc}</div>
+    <div class="stage"><canvas></canvas></div>
+    <div class="tags">${c.tags.map(([k,t])=>`<span class="${k}">${t}</span>`).join('')}</div>
+  `;
+  document.getElementById('grid').appendChild(card);
+  const stage=card.querySelector('.stage');
+  const cv=stage.querySelector('canvas');
+  const ctx=cv.getContext('2d');
+  const fx=[];
+  let W=0,H=0,dpr=1;
+  const role=ROLE_KEYS[idx%ROLE_KEYS.length];
+  const body={
+    role, hy:false, grain:2, seed:1000+idx*999,
+    r: role==='AIR'?52: role==='COLOR'?44: role==='PULSE'?28:36,
+    x:0,y:0, stipple:makeStipple(1000+idx*999)
+  };
+  let lastHit=0, hot=0;
+
+  function resize(){
+    dpr=Math.min(1.5, devicePixelRatio||1);
+    const r=stage.getBoundingClientRect();
+    W=r.width; H=r.height;
+    cv.width=(W*dpr)|0; cv.height=(H*dpr)|0;
+    cv.style.width=W+'px'; cv.style.height=H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    body.x=W*0.42; body.y=H*0.52;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function cutPoint(){
+    // fake meridian cut on right edge of body
+    const theta=-0.4+Math.random()*0.3;
+    return {
+      x: body.x + Math.cos(theta)*body.r*0.85,
+      y: body.y + Math.sin(theta)*body.r*0.85,
+      theta
+    };
+  }
+
+  function fire(){
+    const now=performance.now()/1000;
+    lastHit=now; hot=1;
+    c.spawn(fx, body, cutPoint());
+  }
+
+  stage.addEventListener('click', fire);
+
+  // auto pulse different tempos
+  const period=900+idx*180;
+  setInterval(fire, period);
+  setTimeout(fire, 200+idx*120);
+
+  // draw meridian guide
+  function frame(){
+    const now=performance.now()/1000;
+    hot=Math.max(0, 1-(now-lastHit)/0.35);
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+
+    // field noise
+    ctx.fillStyle='#1a1a1a';
+    ctx.font='10px IBM Plex Mono,monospace';
+    for(let y=8;y<H;y+=14){
+      let s=''; for(let x=0;x<W;x+=11) s+='.:· '[((x*y+idx*3)%4)];
+      ctx.fillText(s, 4, y);
+    }
+
+    // meridian
+    ctx.strokeStyle='rgba(255,225,77,.35)'; ctx.lineWidth=1;
+    ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(W*0.5, 20); ctx.lineTo(W*0.5, H-20); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // pole
+    ctx.strokeStyle='rgba(255,255,255,.4)';
+    ctx.beginPath();
+    ctx.moveTo(W*0.5-6,H*0.5); ctx.lineTo(W*0.5+6,H*0.5);
+    ctx.moveTo(W*0.5,H*0.5-6); ctx.lineTo(W*0.5,H*0.5+6);
+    ctx.stroke();
+
+    drawBody(ctx, body, hot);
+    drawFx(ctx, fx, now);
+
+    ctx.fillStyle='#333';
+    ctx.font='8px IBM Plex Mono,monospace';
+    ctx.textAlign='left';
+    ctx.fillText('CLICK TO FIRE', 10, H-10);
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+CONCEPTS.forEach(mountConcept);
+</script>
+</body>
+</html>

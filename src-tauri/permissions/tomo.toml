@@ -1,0 +1,14 @@
+[[permission]]
+identifier = "allow-open-match-samples-dir"
+description = "Allow opening the MATCH samples bank folder in the OS file manager"
+commands.allow = ["open_match_samples_dir"]
+
+[[permission]]
+identifier = "allow-write-export-file"
+description = "Allow writing CAP/export files into Downloads/TOMO/{session}"
+commands.allow = ["write_export_file"]
+
+[[permission]]
+identifier = "allow-open-export-folder"
+description = "Allow opening a CAP session folder in the OS file manager"
+commands.allow = ["open_export_folder"]

@@ -1,0 +1,30 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capability for the main TOMO window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-is-fullscreen",
+    "core:window:allow-maximize",
+    "core:window:allow-unmaximize",
+    "core:window:allow-set-focus",
+    "core:window:allow-show",
+    "core:window:allow-set-title",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "opener:default",
+    "allow-open-match-samples-dir",
+    "allow-write-export-file",
+    "allow-open-export-folder",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        { "path": "$RESOURCE/**" },
+        { "path": "$EXE/**" },
+        { "path": "**" }
+      ]
+    }
+  ]
+}

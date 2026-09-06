@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TOMO — Wake exit animations</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  :root{
+    --mono:"IBM Plex Mono",Consolas,monospace;
+    --soft:#5a1818; --soft-hi:#8a3030; --soft-t:#e8c8c8;
+    --cyan:#35d8e8; --mint:#3ff0a5; --orange:#ff7a2f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#050505;color:#e8e8e8;font-family:var(--mono)}
+  .page{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
+  h1{font-size:11px;letter-spacing:.42em;color:#ff3b30;margin-bottom:8px}
+  .sub{font-size:10px;letter-spacing:.04em;color:#6a6a6a;line-height:1.7;max-width:860px;margin-bottom:10px}
+  .sub b{color:var(--soft-t);font-weight:400}
+  .pick{font-size:9px;letter-spacing:.16em;color:var(--orange);margin:16px 0 14px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:920px){.grid{grid-template-columns:1fr}}
+  .card{border:1px solid #2a1a1a;background:#080808;overflow:hidden;transition:border-color .15s}
+  .card:hover{border-color:#5a3030}
+  .card.on{border-color:var(--soft-hi)}
+  .stage{position:relative;height:240px;background:#000;overflow:hidden;cursor:pointer}
+  .stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .stage .ui{
+    position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;pointer-events:none;gap:6px;
+    transition:opacity .35s ease, transform .45s ease, filter .45s ease}
+  .stage .brand{font-size:18px;letter-spacing:.55em;margin-right:-.55em;color:#e8e8e8;font-weight:600}
+  .stage .cta{
+    margin-top:10px;font-size:8px;letter-spacing:.2em;color:var(--soft-t);
+    border:1px solid var(--soft-hi);padding:8px 16px;background:#140808;
+    pointer-events:auto;cursor:pointer;font-family:inherit}
+  .stage .cta:hover{border-color:#e8c8c8;color:#fff}
+  .meta{padding:10px 12px 12px;border-top:1px solid #1a1212}
+  .nm{font-size:10px;letter-spacing:.28em;color:var(--soft-t);margin-bottom:5px}
+  .ds{font-size:9px;letter-spacing:.04em;color:#777;line-height:1.55}
+  .tag{display:inline-block;margin-top:8px;font-size:8px;letter-spacing:.14em;
+    padding:3px 8px;border:1px solid #2a1a1a;color:#8a6060}
+  .card.on .tag{border-color:var(--soft-hi);color:var(--soft-t);background:var(--soft)}
+  #bar{position:sticky;bottom:0;margin-top:20px;padding:12px 14px;border:1px solid #2a1a1a;
+    background:#0a0606;display:flex;gap:12px;align-items:center;flex-wrap:wrap;z-index:5}
+  #bar .lbl{font-size:9px;letter-spacing:.14em;color:#8a6060;flex:1;min-width:180px}
+  #bar .lbl b{color:var(--soft-t);font-weight:400}
+  #bar button{font:inherit;font-size:9px;letter-spacing:.18em;padding:8px 14px;
+    border:1px solid var(--soft-hi);background:var(--soft);color:var(--soft-t);cursor:pointer}
+  #bar button.ghost{background:transparent;color:#8a8a8a;border-color:#2a1a1a}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>TOMO // WAKE EXIT</h1>
+  <p class="sub">
+    Animacje <b>po naciśnięciu CLICK TO WAKE</b> — nie ekran startowy, tylko wyjście do void.
+    Aktualnie w appce jest prosty cyan cut. Poniżej 6 lepszych kierunków.
+  </p>
+  <p class="sub">Kliknij <b>CLICK TO WAKE</b> na karcie, żeby odtworzyć. Potem napisz np. <b>„weź E”</b>.</p>
+  <div class="pick">WYBIERZ JEDEN · LIVE PREVIEW</div>
+  <div class="grid" id="grid"></div>
+  <div id="bar">
+    <div class="lbl">WYBRANO · <b id="sel">—</b></div>
+    <button class="ghost" type="button" id="replay">REPLAY WYBRANY</button>
+  </div>
+</div>
+<script>
+const OPTS = [
+  {
+    id:'A', name:'MERIDIAN REVEAL',
+    ds:'Pionowy meridian rozchyla się na boki jak drzwi sekcji. UI wciąga się w linię cięcia, void wychodzi ze środka.',
+    tag:'instrument · czysty'
+  },
+  {
+    id:'B', name:'RING LOCK',
+    ds:'Z CTA wychodzi pierścień, domyka się do pełnego okręgu, potem imploduje i zostawia tylko void. TOMO rozpływa się w łuk.',
+    tag:'formacja · rytuał'
+  },
+  {
+    id:'C', name:'SCAN WIPE',
+    ds:'Poziomy beam CRT skanuje kadr od góry. Za wiązką zostaje żywy void, przed nią jeszcze wake. Soft-red glow + label SECTION.',
+    tag:'crt · jak teraz, ale gęściej'
+  },
+  {
+    id:'D', name:'FOCUS PULL',
+    ds:'Cały wake idzie w deep blur + lekki zoom-in, potem „łapie ostrość” na void. Jak przełączanie obiektywu w labie.',
+    tag:'filmowy · miękki'
+  },
+  {
+    id:'E', name:'GLYPH DISSOLVE',
+    ds:'TOMO i CTA rozpadają się w dither/ASCII, litery opadają jak pył. Meridian zapala się na końcu jako potwierdzenie.',
+    tag:'typografia · void'
+  },
+  {
+    id:'F', name:'STROBE ARM',
+    ds:'3 krótkie soft-red flash + beep-feel (wizualnie), potem natychmiastowy hard cut do void. Zero poezji — jak zbrojenie instrumentu.',
+    tag:'agresywny · desktop'
+  },
+];
+
+const ease = x => x<.5 ? 2*x*x : 1-Math.pow(-2*x+2,2)/2;
+const clamp01 = x => Math.max(0, Math.min(1, x));
+
+function fakeVoid(ctx,w,h,t){
+  const g=ctx.createRadialGradient(w/2,h/2,10,w/2,h/2,Math.max(w,h)*0.55);
+  g.addColorStop(0,'#1a0a0a'); g.addColorStop(0.45,'#0a0608'); g.addColorStop(1,'#020202');
+  ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle='rgba(53,216,232,.35)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(w/2,h/2,Math.min(w,h)*0.28,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle='rgba(232,200,200,.12)';
+  ctx.beginPath(); ctx.moveTo(w/2, h*0.12); ctx.lineTo(w/2, h*0.88); ctx.stroke();
+  ctx.fillStyle='rgba(220,190,190,.04)';
+  for(let y=0;y<h;y+=3) ctx.fillRect(0,y,w,1);
+  const ph=((t*0.04)|0);
+  ctx.fillStyle='#1a1010';
+  for(let y=0;y<h;y+=16) for(let x=0;x<w;x+=16){
+    const hsh=((x*73856093)^(y*19349663)^ph)&255;
+    if(hsh>200){ ctx.globalAlpha=.25; ctx.fillRect(x+(hsh&3),y,1,1); }
+  }
+  ctx.globalAlpha=1;
+}
+function wakePlate(ctx,w,h,t){
+  ctx.fillStyle='#030303'; ctx.fillRect(0,0,w,h);
+  const ph=((t*0.03)|0);
+  ctx.fillStyle='#0e0e0e';
+  for(let y=0;y<h;y+=14) for(let x=0;x<w;x+=14){
+    const hsh=((x*73856093)^(y*19349663)^ph)&255;
+    if(hsh>210){ ctx.globalAlpha=.2; ctx.fillRect(x,y,1,1); }
+  }
+  ctx.globalAlpha=1;
+  ctx.fillStyle='rgba(220,190,190,.028)';
+  for(let y=0;y<h;y+=2) ctx.fillRect(0,y,w,1);
+}
+
+const painters = {
+  A(ctx,w,h,u,t,ui){
+    fakeVoid(ctx,w,h,t);
+    const open = ease(u);
+    const half = (w*0.5)*(1-open);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0,0,half,h); ctx.rect(w-half,0,half+1,h); ctx.clip();
+    wakePlate(ctx,w,h,t);
+    ctx.restore();
+    // meridian edges
+    ctx.strokeStyle=`rgba(53,216,232,${0.9-open*0.5})`;
+    ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(half,0); ctx.lineTo(half,h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w-half,0); ctx.lineTo(w-half,h); ctx.stroke();
+    const glow=ctx.createLinearGradient(half-20,0,half+20,0);
+    glow.addColorStop(0,'rgba(53,216,232,0)');
+    glow.addColorStop(.5,`rgba(53,216,232,${0.2*(1-open)})`);
+    glow.addColorStop(1,'rgba(53,216,232,0)');
+    ctx.fillStyle=glow; ctx.fillRect(half-20,0,40,h);
+    ctx.fillStyle=glow; ctx.fillRect(w-half-20,0,40,h);
+    ui.style.opacity = String(1-ease(Math.min(1,u*1.4)));
+    ui.style.transform = `scaleX(${Math.max(0.02,1-open*0.95)})`;
+    ui.style.filter = `blur(${open*4}px)`;
+  },
+  B(ctx,w,h,u,t,ui){
+    fakeVoid(ctx,w,h,t);
+    const rMax=Math.hypot(w,h)*0.55;
+    const grow=ease(clamp01(u/0.55));
+    const implode=ease(clamp01((u-0.45)/0.55));
+    const r = rMax * (grow*(1-implode*0.15));
+    const hole = rMax * implode;
+    // wake outside ring hole
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0,0,w,h);
+    ctx.arc(w/2,h/2, Math.max(0.5, hole), 0, Math.PI*2, true);
+    ctx.clip('evenodd');
+    wakePlate(ctx,w,h,t);
+    ctx.restore();
+    ctx.strokeStyle=`rgba(53,216,232,${0.85*(1-implode*0.3)})`;
+    ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(w/2,h/2, Math.max(2,r*(1-implode)+hole*0.2),0,Math.PI*2); ctx.stroke();
+    ctx.strokeStyle=`rgba(232,200,200,${0.25*(1-implode)})`;
+    ctx.beginPath(); ctx.arc(w/2,h/2, Math.max(2,r*0.72),0,Math.PI*2); ctx.stroke();
+    ui.style.opacity = String(1-ease(Math.min(1,u*1.6)));
+    ui.style.transform = `scale(${1+grow*0.08-implode*0.3})`;
+    ui.style.filter = `blur(${implode*6}px)`;
+  },
+  C(ctx,w,h,u,t,ui){
+    const cut=h*ease(u);
+    fakeVoid(ctx,w,h,t);
+    if(cut<h-1){
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0,cut,w,h-cut+1); ctx.clip();
+      wakePlate(ctx,w,h,t);
+      ctx.restore();
+    }
+    // thicker scan band
+    const band=ctx.createLinearGradient(0,cut-40,0,cut+40);
+    band.addColorStop(0,'rgba(90,24,24,0)');
+    band.addColorStop(0.35,`rgba(90,24,24,${0.35*(1-u)})`);
+    band.addColorStop(0.5,`rgba(53,216,232,${0.55*(1-u*0.4)})`);
+    band.addColorStop(0.65,`rgba(90,24,24,${0.25*(1-u)})`);
+    band.addColorStop(1,'rgba(90,24,24,0)');
+    ctx.fillStyle=band; ctx.fillRect(0,cut-40,w,80);
+    ctx.strokeStyle=`rgba(53,216,232,${0.95-u*0.3})`;
+    ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(0,cut); ctx.lineTo(w,cut); ctx.stroke();
+    ctx.fillStyle='#35d8e8';
+    ctx.fillRect((w*0.68)|0,(cut-5)|0,10,10);
+    ctx.font='8px IBM Plex Mono,monospace';
+    ctx.fillStyle=`rgba(53,216,232,${0.85*(1-u)})`;
+    if(u<0.9) ctx.fillText('SECTION', w*0.68+16, cut-8);
+    // residual scanlines behind beam
+    ctx.fillStyle=`rgba(220,190,190,${0.05*(1-u)})`;
+    for(let y=0;y<cut;y+=3) ctx.fillRect(0,y,w,1);
+    ui.style.opacity = String(cut < h*0.42 ? 1 : Math.max(0, 1-(cut/h-0.42)/0.25));
+    ui.style.transform = `translateY(${-u*24}px)`;
+    ui.style.filter = `blur(${u*2}px)`;
+  },
+  D(ctx,w,h,u,t,ui){
+    const blurIn = ease(clamp01(u/0.45));
+    const snap = ease(clamp01((u-0.4)/0.6));
+    // wake layer
+    ctx.save();
+    if(snap<1){
+      wakePlate(ctx,w,h,t);
+      ctx.fillStyle=`rgba(3,3,3,${0.15*blurIn})`;
+      ctx.fillRect(0,0,w,h);
+    }
+    ctx.restore();
+    // void fades in sharp
+    ctx.save();
+    ctx.globalAlpha = snap;
+    fakeVoid(ctx,w,h,t);
+    ctx.restore();
+    // soft bloom flash at snap
+    if(u>0.38 && u<0.62){
+      const f = 1-Math.abs((u-0.5)/0.12);
+      ctx.fillStyle=`rgba(232,200,200,${0.08*f})`;
+      ctx.fillRect(0,0,w,h);
+    }
+    const sc = 1 + blurIn*0.06 - snap*0.02;
+    ui.style.opacity = String(1-snap);
+    ui.style.transform = `scale(${sc})`;
+    ui.style.filter = `blur(${blurIn*10*(1-snap*0.2)}px)`;
+  },
+  E(ctx,w,h,u,t,ui){
+    fakeVoid(ctx,w,h,t);
+    const plate = 1-ease(clamp01(u/0.85));
+    if(plate>0.02){
+      ctx.globalAlpha=plate;
+      wakePlate(ctx,w,h,t);
+      ctx.globalAlpha=1;
+    }
+    // falling glyphs
+    const glyphs='TOMO·SECTION·DIVISION·░▒▓·:+*#';
+    ctx.font='11px IBM Plex Mono,monospace';
+    ctx.textAlign='center';
+    const n=48;
+    for(let i=0;i<n;i++){
+      const px = (i*97%100)/100;
+      const delay = (i%7)/12;
+      const p = ease(clamp01((u-delay)/0.7));
+      if(p<=0) continue;
+      const x=w*(0.12+px*0.76);
+      const y=h*(0.28 + p*0.7);
+      ctx.globalAlpha = (1-p)*0.7;
+      ctx.fillStyle = i%5===0 ? '#35d8e8' : '#e8c8c8';
+      ctx.fillText(glyphs[i%glyphs.length], x, y);
+    }
+    ctx.globalAlpha=1;
+    // meridian confirm
+    if(u>0.7){
+      const m=ease((u-0.7)/0.3);
+      ctx.strokeStyle=`rgba(53,216,232,${0.55*m})`;
+      ctx.beginPath(); ctx.moveTo(w/2, h*0.15); ctx.lineTo(w/2, h*0.85); ctx.stroke();
+    }
+    ui.style.opacity = String(1-ease(Math.min(1,u*1.8)));
+    ui.style.transform = `translateY(${u*30}px)`;
+    ui.style.filter = `blur(${u*5}px)`;
+    ui.style.letterSpacing = `${u*0.4}em`;
+  },
+  F(ctx,w,h,u,t,ui){
+    // three flashes then hard cut
+    const flashes=[0.08,0.22,0.36];
+    let flash=0;
+    for(const f of flashes){
+      const d=Math.abs(u-f);
+      if(d<0.04) flash=Math.max(flash, 1-d/0.04);
+    }
+    const cut = u>0.52 ? ease(clamp01((u-0.52)/0.2)) : 0;
+    if(cut<1){
+      wakePlate(ctx,w,h,t);
+      if(flash>0){
+        ctx.fillStyle=`rgba(138,48,48,${0.55*flash})`;
+        ctx.fillRect(0,0,w,h);
+        ctx.strokeStyle=`rgba(232,200,200,${0.8*flash})`;
+        ctx.lineWidth=2; ctx.strokeRect(8,8,w-16,h-16);
+      }
+      // arm markers
+      ctx.fillStyle=`rgba(232,200,200,${0.5+flash*0.5})`;
+      ctx.font='9px IBM Plex Mono,monospace';
+      ctx.textAlign='center';
+      const step = u<0.15?1:u<0.28?2:u<0.45?3:3;
+      ctx.fillText(`ARM ${step}/3`, w/2, h*0.78);
+    }
+    ctx.globalAlpha=cut;
+    fakeVoid(ctx,w,h,t);
+    ctx.globalAlpha=1;
+    if(cut>0.01 && cut<1){
+      ctx.fillStyle=`rgba(3,3,3,${1-cut})`;
+      ctx.fillRect(0,0,w,h);
+    }
+    ui.style.opacity = String(cut>0 ? 0 : 1);
+    ui.style.transform = flash>0 ? `scale(${1+flash*0.03})` : 'scale(1)';
+    ui.style.filter = 'none';
+  },
+};
+
+let selected=null;
+const cards=new Map();
+
+function makeCard(opt){
+  const el=document.createElement('div');
+  el.className='card';
+  el.dataset.id=opt.id;
+  el.innerHTML=`
+    <div class="stage">
+      <canvas></canvas>
+      <div class="ui">
+        <div class="brand">TOMO</div>
+        <button class="cta" type="button">- CLICK TO WAKE -</button>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="nm">${opt.id} · ${opt.name}</div>
+      <div class="ds">${opt.ds}</div>
+      <span class="tag">${opt.tag}</span>
+    </div>`;
+  const cv=el.querySelector('canvas');
+  const ui=el.querySelector('.ui');
+  const cta=el.querySelector('.cta');
+  const stage=el.querySelector('.stage');
+  const st={ opt, el, cv, ui, cta, playing:false, t0:0, exitT0:0, raf:0, idle:true };
+  cards.set(opt.id, st);
+
+  function size(){
+    const r=stage.getBoundingClientRect();
+    const dpr=Math.min(1.5, devicePixelRatio||1);
+    cv.width=(r.width*dpr)|0; cv.height=(r.height*dpr)|0;
+    cv.style.width=r.width+'px'; cv.style.height=r.height+'px';
+    const ctx=cv.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    return {ctx, w:r.width, h:r.height};
+  }
+
+  function frame(ts){
+    const {ctx,w,h}=size();
+    const t=ts-st.t0;
+    if(st.playing){
+      const raw=clamp01((ts-st.exitT0)/1100);
+      painters[opt.id](ctx,w,h,raw,t,ui);
+      if(raw>=1){
+        st.playing=false;
+        // hold void briefly then reset
+        setTimeout(()=>resetIdle(), 700);
+        return;
+      }
+      st.raf=requestAnimationFrame(frame);
+      return;
+    }
+    // idle
+    wakePlate(ctx,w,h,t);
+    ui.style.opacity='1';
+    ui.style.transform='none';
+    ui.style.filter='none';
+    ui.style.letterSpacing='';
+    st.raf=requestAnimationFrame(frame);
+  }
+
+  function resetIdle(){
+    st.playing=false;
+    st.idle=true;
+    ui.style.opacity='1';
+    ui.style.transform='none';
+    ui.style.filter='none';
+    ui.style.letterSpacing='';
+    cancelAnimationFrame(st.raf);
+    st.t0=performance.now();
+    st.raf=requestAnimationFrame(frame);
+  }
+
+  function play(){
+    select(opt.id);
+    st.playing=true;
+    st.exitT0=performance.now();
+    cancelAnimationFrame(st.raf);
+    st.raf=requestAnimationFrame(frame);
+  }
+
+  cta.addEventListener('click', e=>{ e.stopPropagation(); play(); });
+  stage.addEventListener('click', e=>{ if(e.target===cta) return; select(opt.id); });
+  el.addEventListener('click', ()=>select(opt.id));
+
+  st.play=play;
+  st.resetIdle=resetIdle;
+  st.t0=performance.now();
+  st.raf=requestAnimationFrame(frame);
+  return el;
+}
+
+function select(id){
+  selected=id;
+  document.getElementById('sel').textContent = id+' · '+OPTS.find(o=>o.id===id).name;
+  for(const [k,st] of cards) st.el.classList.toggle('on', k===id);
+}
+
+const grid=document.getElementById('grid');
+OPTS.forEach(o=>grid.appendChild(makeCard(o)));
+document.getElementById('replay').onclick=()=>{
+  if(!selected){ select('A'); }
+  cards.get(selected).play();
+};
+</script>
+</body>
+</html>

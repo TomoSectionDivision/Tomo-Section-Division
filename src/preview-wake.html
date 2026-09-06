@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TOMO — Wake screen options</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  :root{
+    --mono:"IBM Plex Mono",Consolas,monospace;
+    --frame:#e8e8e8; --dim:#6a6a6a;
+    --soft:#5a1818; --soft-hi:#8a3030; --soft-t:#e8c8c8;
+    --cyan:#35d8e8; --mint:#3ff0a5; --orange:#ff7a2f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#050505;color:var(--frame);font-family:var(--mono)}
+  .page{max-width:1200px;margin:0 auto;padding:28px 20px 72px}
+  h1{font-size:11px;letter-spacing:.42em;color:#ff3b30;margin-bottom:8px}
+  .sub{font-size:10px;letter-spacing:.04em;color:var(--dim);line-height:1.7;max-width:820px;margin-bottom:22px}
+  .sub b{color:var(--soft-t);font-weight:400}
+  .pick{font-size:9px;letter-spacing:.16em;color:var(--orange);margin-bottom:18px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{border:1px solid #2a1a1a;background:#080808;overflow:hidden;cursor:pointer;transition:border-color .15s}
+  .card:hover{border-color:#5a3030}
+  .card.on{border-color:var(--soft-hi)}
+  .card .stage{position:relative;height:260px;background:#000;overflow:hidden}
+  .card canvas{display:block;width:100%;height:100%}
+  .card .meta{padding:10px 12px 12px;border-top:1px solid #1a1212}
+  .card .nm{font-size:10px;letter-spacing:.28em;color:var(--soft-t);margin-bottom:5px}
+  .card .ds{font-size:9px;letter-spacing:.04em;color:#777;line-height:1.55}
+  .card .tag{display:inline-block;margin-top:8px;font-size:8px;letter-spacing:.14em;
+    padding:3px 8px;border:1px solid #2a1a1a;color:#8a6060}
+  .card.on .tag{border-color:var(--soft-hi);color:var(--soft-t);background:var(--soft)}
+  #bar{position:sticky;bottom:0;margin-top:22px;padding:12px 14px;border:1px solid #2a1a1a;
+    background:#0a0606;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  #bar .lbl{font-size:9px;letter-spacing:.14em;color:#8a6060;flex:1;min-width:180px}
+  #bar .lbl b{color:var(--soft-t);font-weight:400}
+  #bar button{font:inherit;font-size:9px;letter-spacing:.18em;padding:8px 14px;
+    border:1px solid var(--soft-hi);background:var(--soft);color:var(--soft-t);cursor:pointer}
+  #bar button:hover{border-color:var(--soft-t)}
+  #bar button.ghost{background:transparent;color:#8a8a8a;border-color:#2a1a1a}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>TOMO // WAKE OPTIONS</h1>
+  <p class="sub">
+    Cztery animowane warianty ekranu startowego w estetyce void / biolab.
+    <b>Kliknij kartę</b>, żeby wybrać. Potem napisz w chacie np. <b>„weź B”</b> — wgram go do appki.
+    (Aktualny problem z czarnym pasem po prawej: szum tekstowy nie wypełniał ultrawide — nowe warianty rysują full-bleed canvas.)
+  </p>
+  <div class="pick">WYBIERZ JEDEN · PODGLĄD NA ŻYWO</div>
+  <div class="grid" id="grid"></div>
+  <div id="bar">
+    <div class="lbl">WYBRANO · <b id="sel">—</b></div>
+    <button class="ghost" type="button" id="replay">REPLAY</button>
+    <button type="button" id="copy">SKOPIUJ ID</button>
+  </div>
+</div>
+<script>
+const GLYPHS = '.:·*+░▒┼│─┌┐└┘[]{}()#@$%<>|/\\';
+const OPTS = [
+  {
+    id:'A', name:'VOID BREATH',
+    ds:'Pełne pole dither oddycha. Meridian skanuje void. TOMO pulsuje w centrum — klik budzi sekcję.',
+    tag:'spokojny · klasyczny'
+  },
+  {
+    id:'B', name:'SECTION CUT',
+    ds:'Linia cięcia przechodzi przez kadr i odsłania pierścień. L-markery zapalają się po kolei.',
+    tag:'kinematyka · instrument'
+  },
+  {
+    id:'C', name:'POLE LOCK',
+    ds:'Cząstki spirali wpadają w KEY POLE. Pierścień domyka się z zewnątrz. Soft-red CTA na końcu.',
+    tag:'formacja · sci-fi'
+  },
+  {
+    id:'D', name:'CRT BOOT',
+    ds:'Terminal bootuje BIOLAB-03 linia po linii. Scanline + phosphor glow. Potem TOMO i CTA.',
+    tag:'terminal · boot'
+  },
+];
+
+let selected='A';
+const cards={};
+
+function el(tag, cls, html){
+  const n=document.createElement(tag);
+  if(cls) n.className=cls;
+  if(html!=null) n.innerHTML=html;
+  return n;
+}
+
+function setupCard(opt){
+  const card=el('div','card'+(opt.id===selected?' on':''));
+  card.dataset.id=opt.id;
+  const stage=el('div','stage');
+  const cv=document.createElement('canvas');
+  stage.appendChild(cv);
+  const meta=el('div','meta');
+  meta.appendChild(el('div','nm', opt.id+' · '+opt.name));
+  meta.appendChild(el('div','ds', opt.ds));
+  meta.appendChild(el('div','tag', opt.tag));
+  card.appendChild(stage); card.appendChild(meta);
+  card.onclick=()=>{
+    selected=opt.id;
+    document.querySelectorAll('.card').forEach(c=>c.classList.toggle('on', c.dataset.id===selected));
+    $('sel').textContent=selected+' · '+OPTS.find(o=>o.id===selected).name;
+  };
+  $('grid').appendChild(card);
+  cards[opt.id]={cv, opt, t0:performance.now()};
+  layout(cv);
+  return cards[opt.id];
+}
+
+function $(id){return document.getElementById(id)}
+function layout(cv){
+  const r=cv.parentElement.getBoundingClientRect();
+  const dpr=Math.min(1.5, devicePixelRatio||1);
+  cv.width=(r.width*dpr)|0; cv.height=(r.height*dpr)|0;
+  cv.style.width=r.width+'px'; cv.style.height=r.height+'px';
+  const ctx=cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {w:r.width, h:r.height, ctx};
+}
+
+function dither(ctx,w,h,t, dens){
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+  ctx.fillStyle='#121212';
+  ctx.font='9px '+getComputedStyle(document.body).fontFamily;
+  const step=11, breath=0.55+0.2*Math.sin(t*0.0011);
+  for(let y=0;y<h+step;y+=step){
+    for(let x=0;x<w+step;x+=step){
+      if(Math.random()>dens*breath) continue;
+      const g=GLYPHS[(Math.random()*GLYPHS.length)|0];
+      ctx.globalAlpha=0.35+Math.random()*0.45;
+      ctx.fillText(g, x+(Math.random()*3-1.5), y);
+    }
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawCTA(ctx,w,h, label){
+  const tw=ctx.measureText('TOMO').width;
+  ctx.fillStyle='#e8e8e8';
+  ctx.font='600 18px '+getComputedStyle(document.body).fontFamily;
+  ctx.letterSpacing='0.55em';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('TOMO', w/2, h*0.42);
+  ctx.letterSpacing='0';
+  const bw=150, bh=26, bx=w/2-bw/2, by=h*0.42+22;
+  ctx.fillStyle='#1a0808'; ctx.strokeStyle='#8a3030'; ctx.lineWidth=1;
+  ctx.fillRect(bx,by,bw,bh); ctx.strokeRect(bx+0.5,by+0.5,bw-1,bh-1);
+  ctx.fillStyle='#e8c8c8';
+  ctx.font='9px '+getComputedStyle(document.body).fontFamily;
+  const blink=(Math.sin(performance.now()/400)>0);
+  ctx.globalAlpha=blink?1:0.55;
+  ctx.fillText(label||'-Click to wake', w/2, by+bh/2+0.5);
+  ctx.globalAlpha=1;
+}
+
+function drawA(st, t){
+  const {ctx,w,h}=st;
+  dither(ctx,w,h,t, 0.42);
+  // meridian sweep
+  const ang=-Math.PI/2 + (t*0.00045)%(Math.PI*2);
+  const cx=w/2, cy=h*0.46, R=Math.min(w,h)*0.28;
+  ctx.strokeStyle='rgba(53,216,232,.18)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle='rgba(53,216,232,.75)';
+  ctx.beginPath(); ctx.moveTo(cx,cy);
+  ctx.lineTo(cx+Math.cos(ang)*R*1.05, cy+Math.sin(ang)*R*1.05); ctx.stroke();
+  drawCTA(ctx,w,h);
+}
+
+function drawB(st, t){
+  const {ctx,w,h}=st;
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+  dither(ctx,w,h,t, 0.22);
+  const cx=w/2, cy=h*0.46, R=Math.min(w,h)*0.3;
+  const cut=((t*0.00035)%1);
+  // reveal ring with horizontal cut
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0,0,w, h*cut);
+  ctx.clip();
+  ctx.strokeStyle='rgba(232,232,232,.35)'; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
+  for(let i=0;i<4;i++){
+    const a=-Math.PI/2+i*Math.PI/2;
+    ctx.fillStyle='#3ff0a5';
+    ctx.fillRect(cx+Math.cos(a)*R*0.55-3, cy+Math.sin(a)*R*0.55-3, 6, 6);
+  }
+  ctx.restore();
+  // cutting blade
+  const y=h*cut;
+  ctx.strokeStyle='#35d8e8'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+  ctx.fillStyle='#35d8e8'; ctx.fillRect(w*0.72, y-3, 6, 6);
+  if(cut>0.55) drawCTA(ctx,w,h);
+}
+
+function drawC(st, t){
+  const {ctx,w,h}=st;
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+  const cx=w/2, cy=h*0.46, R=Math.min(w,h)*0.32;
+  const phase=Math.min(1, (t%6000)/4500);
+  // particles spiral in
+  for(let i=0;i<90;i++){
+    const seed=i*12.9898;
+    const p=Math.max(0, phase - (i%17)*0.02);
+    const a=seed + p*6.2;
+    const rad=R*(1.6-p*1.35);
+    const x=cx+Math.cos(a)*rad, y=cy+Math.sin(a)*rad;
+    ctx.fillStyle= i%7===0 ? '#8a3030' : '#2a2a2a';
+    ctx.globalAlpha=0.35+p*0.65;
+    ctx.fillRect(x|0,y|0,1+(i%3===0),1+(i%3===0));
+  }
+  ctx.globalAlpha=1;
+  ctx.strokeStyle=`rgba(232,232,232,${0.15+phase*0.45})`;
+  ctx.beginPath(); ctx.arc(cx,cy,R*phase,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle='#e8c8c8';
+  ctx.font='8px '+getComputedStyle(document.body).fontFamily;
+  ctx.textAlign='center';
+  ctx.globalAlpha=phase;
+  ctx.fillText('KEY POLE', cx, cy+R*phase+16);
+  ctx.globalAlpha=1;
+  if(phase>0.72) drawCTA(ctx,w,h);
+}
+
+function drawD(st, t){
+  const {ctx,w,h}=st;
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+  // scanlines
+  ctx.fillStyle='rgba(200,180,180,.03)';
+  for(let y=0;y<h;y+=3) ctx.fillRect(0,y,w,1);
+  const lines=[
+    '> INIT BIOLAB-03',
+    '> LOAD MATCH BANK …… OK',
+    '> MOUNT VOID …… OK',
+    '> SECTION DIVISION …… READY',
+    '> AWAIT OPERATOR',
+  ];
+  const n=Math.min(lines.length, 1+((t/420)|0));
+  ctx.font='10px '+getComputedStyle(document.body).fontFamily;
+  ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillStyle='#5a3030';
+  for(let i=0;i<n;i++){
+    ctx.fillStyle= i===n-1 ? '#e8c8c8' : '#5a3030';
+    ctx.fillText(lines[i], w*0.18, h*0.22+i*18);
+  }
+  // cursor
+  if(n<lines.length && ((t/300)|0)%2===0){
+    ctx.fillStyle='#8a3030';
+    ctx.fillRect(w*0.18, h*0.22+n*18, 8, 10);
+  }
+  if(n>=lines.length){
+    drawCTA(ctx,w,h, '-Click to wake');
+  }
+}
+
+const drawers={A:drawA,B:drawB,C:drawC,D:drawD};
+
+OPTS.forEach(setupCard);
+$('sel').textContent=selected+' · '+OPTS[0].name;
+
+function frame(now){
+  for(const id of Object.keys(cards)){
+    const c=cards[id];
+    const st=layout(c.cv);
+    drawers[id](st, now-c.t0);
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+addEventListener('resize', ()=>Object.values(cards).forEach(c=>layout(c.cv)));
+
+$('replay').onclick=()=>{
+  Object.values(cards).forEach(c=>c.t0=performance.now());
+};
+$('copy').onclick=()=>{
+  navigator.clipboard?.writeText(selected);
+  $('sel').textContent=selected+' · skopiowano — wklej w czacie';
+};
+</script>
+</body>
+</html>

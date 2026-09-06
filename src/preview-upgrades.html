@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>TOMO — ASCII Terminal Upgrade Preview</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap');
+  :root{
+    --bg:#000;
+    --ink:#c8c0d8;
+    --dim:#3a3a3a;
+    --dimmer:#1e1e1e;
+    --mint:#3ff0a5;
+    --cyan:#35d8e8;
+    --orange:#ff7a2f;
+    --yellow:#ffe14d;
+    --pink:#ff2d8a;
+    --red:#ff3b30;
+    --purple:#a060ff;
+    --blue:#2b6cff;
+    --mono:"IBM Plex Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{
+    background:#000;color:var(--ink);font-family:var(--mono);
+    -webkit-font-smoothing:none;image-rendering:pixelated;
+  }
+  .page{max-width:1280px;margin:0 auto;padding:48px 28px 80px}
+  h1{font-size:11px;letter-spacing:.45em;color:var(--red);margin-bottom:6px}
+  h1 span{color:var(--dim)}
+  .sub{font-size:8.5px;letter-spacing:.22em;color:var(--dim);margin-bottom:48px;line-height:1.7}
+  .section{margin-bottom:64px}
+  .st{font-size:9px;letter-spacing:.32em;color:var(--orange);margin-bottom:6px}
+  .sd{font-size:9.5px;letter-spacing:.06em;color:var(--dim);margin-bottom:20px;max-width:720px;line-height:1.65}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .box{
+    border:1px solid #2a1010;background:#050505;padding:18px;position:relative;min-height:160px;
+  }
+  .box::before{
+    content:attr(data-l);position:absolute;top:-8px;left:10px;background:#000;
+    font-size:7px;letter-spacing:.22em;color:var(--dim);padding:0 5px;
+  }
+  .box.new::before{color:var(--mint)}
+
+  /* shared ascii noise bg */
+  .noise{
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='24'><text x='0' y='8' fill='%23222222' font-family='monospace' font-size='7'>#.+(@&amp;%*[</text><text x='0' y='18' fill='%231a1a1a' font-family='monospace' font-size='7'>+.#)@&amp;%]*</text></svg>");
+    background-size:48px 24px;
+  }
+
+  /* ── 1 field ── */
+  .field{
+    position:relative;height:220px;overflow:hidden;border:1px solid #1a0a0a;
+    background:#000;
+  }
+  .field .chars{
+    position:absolute;inset:0;font-size:9px;line-height:11px;letter-spacing:.15em;
+    color:#1c1c1c;white-space:pre;padding:6px;pointer-events:none;overflow:hidden;
+  }
+  .blob{
+    position:absolute;font-size:10px;line-height:11px;letter-spacing:0;
+    white-space:pre;font-weight:700;pointer-events:none;
+  }
+  .blob.cyan{color:var(--cyan);text-shadow:0 0 8px rgba(53,216,232,.35)}
+  .blob.green{color:var(--mint);text-shadow:0 0 8px rgba(63,240,165,.3)}
+  .blob.orange{color:var(--orange);text-shadow:0 0 8px rgba(255,122,47,.3)}
+  .blob.purple{color:var(--purple);text-shadow:0 0 8px rgba(160,96,255,.35)}
+  .pxlayer{
+    position:absolute;display:grid;gap:1px;pointer-events:none;
+  }
+  .pxlayer i{
+    display:block;width:7px;height:7px;opacity:.55;
+  }
+  .labelbar{
+    position:absolute;background:var(--red);color:#fff;
+    font-size:9px;letter-spacing:.08em;padding:2px 8px 3px;z-index:3;
+    box-shadow:2px 2px 0 #000;
+  }
+  .circuit{
+    position:absolute;color:#4a4a4a;font-size:9px;line-height:11px;white-space:pre;
+  }
+  .reticle{
+    position:absolute;width:18px;height:18px;border:1px solid #fff;z-index:4;
+  }
+  .reticle::before,.reticle::after{
+    content:'';position:absolute;background:#fff;
+  }
+  .reticle::before{left:50%;top:-3px;width:1px;height:24px;transform:translateX(-50%)}
+  .reticle::after{top:50%;left:-3px;height:1px;width:24px;transform:translateY(-50%)}
+  .cursor-mark{
+    position:absolute;width:0;height:0;border-left:7px solid #fff;
+    border-top:5px solid transparent;border-bottom:5px solid transparent;
+    z-index:5;filter:drop-shadow(1px 1px 0 #000);
+  }
+  .cursor-mark::after{
+    content:'';position:absolute;left:-7px;top:0;
+    border-left:5px solid #fff;border-top:9px solid transparent;
+  }
+
+  /* ── panels ── */
+  .panel-old{
+    border:1px solid #c8c0d8;background:rgba(7,7,7,.82);
+    box-shadow:3px 3px 0 rgba(0,0,0,.55);padding:10px 12px;
+  }
+  .panel-ascii{
+    border:1px solid #5a2020;background:#050505;padding:0;position:relative;
+  }
+  .panel-ascii .ph{
+    background:var(--red);color:#fff;font-size:8.5px;letter-spacing:.14em;
+    padding:3px 8px;display:flex;justify-content:space-between;
+  }
+  .panel-ascii .pb{
+    padding:8px 10px;font-size:9px;line-height:1.55;color:#8a8a8a;
+    border:1px solid #2a1010;border-top:0;
+  }
+  .panel-ascii .pb b{font-weight:400;color:var(--cyan)}
+  .panel-ascii .pb .g{color:var(--mint)}
+  .panel-ascii .pb .o{color:var(--orange)}
+  .panel-ascii .deco{
+    position:absolute;right:8px;top:28px;color:#2a2a2a;font-size:8px;
+    line-height:9px;white-space:pre;pointer-events:none;
+  }
+
+  /* chips */
+  .chip-old{
+    display:flex;align-items:center;gap:8px;padding:6px 7px;margin-bottom:3px;
+    border:1px solid #2a2a2a;font-size:10px;letter-spacing:.1em;
+  }
+  .chip-old .sw{width:11px;height:11px;border:1px solid #fff8;flex:none}
+  .chip-ascii{
+    display:flex;align-items:center;gap:8px;padding:5px 7px;margin-bottom:3px;
+    border:1px solid #1e1e1e;font-size:9.5px;letter-spacing:.1em;
+    background:#080808;cursor:pointer;
+  }
+  .chip-ascii:hover,.chip-ascii.on{
+    border-color:var(--red);background:#100808;
+  }
+  .chip-ascii .sw{
+    width:11px;height:11px;flex:none;
+    background-image:repeating-linear-gradient(-45deg,currentColor 0 1px,transparent 1px 2px);
+  }
+  .chip-ascii .glyph{color:var(--dim);width:12px;flex:none}
+  .chip-ascii .kb{margin-left:auto;font-size:8px;color:#333;
+    border:1px solid #2a2a2a;padding:0 4px}
+
+  /* lattice */
+  .lat{display:grid;grid-template-columns:repeat(16,1fr);gap:2px;height:36px}
+  .lat div{
+    border:1px solid #1a1a1a;background:#080808;
+    display:flex;align-items:center;justify-content:center;
+    font-size:8px;color:#222;
+  }
+  .lat div.on{border-color:#1a4a35;color:var(--mint);background:#06140e}
+  .lat.ascii div.on{
+    background-image:repeating-linear-gradient(-45deg,rgba(63,240,165,.55) 0 1px,transparent 1px 3px);
+    background-color:rgba(63,240,165,.12);
+    color:transparent;
+  }
+  .lat.ascii div.on::after{content:'#';color:var(--mint);font-size:9px;text-shadow:0 0 6px rgba(63,240,165,.4)}
+  .lat.ascii div.now{border-color:var(--red);box-shadow:inset 0 0 0 1px rgba(255,59,48,.4)}
+  .lat.ascii div.now::before{
+    content:'';position:absolute;
+  }
+
+  /* meters */
+  .mrow{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:8px}
+  .mrow .k{width:52px;color:#666;letter-spacing:.1em}
+  .mrow .n{width:24px;text-align:right;color:#555}
+  .mtrack{flex:1;height:11px;border:1px solid #3a2030;background:#050505;position:relative;overflow:hidden}
+  .mbar{
+    height:100%;
+    background-image:repeating-linear-gradient(-45deg,var(--c,var(--mint)) 0 1px,transparent 1px 2px);
+    background-color:color-mix(in srgb, var(--c,var(--mint)) 22%, transparent);
+  }
+  .mtrack.ascii::after{
+    content:attr(data-g);position:absolute;inset:0;font-size:8px;line-height:11px;
+    letter-spacing:1px;color:rgba(255,255,255,.18);overflow:hidden;white-space:nowrap;
+    padding:0 2px;pointer-events:none;
+  }
+
+  /* feed */
+  .feed-ascii{
+    border:1px solid #5a1028;width:100%;
+  }
+  .feed-ascii .bar{
+    background:var(--pink);color:#10040a;font-size:8px;letter-spacing:.16em;padding:3px 8px;
+  }
+  .feed-ascii .body{
+    background:#12050a;color:var(--pink);padding:6px 8px;font-size:9px;line-height:1.55;
+  }
+  .feed-ascii .body .d{color:#5a2035}
+
+  /* transport */
+  .play-box{
+    width:34px;height:34px;border:1px solid #e8e8e8;display:flex;
+    align-items:center;justify-content:center;font-size:11px;background:#0a0a0a;
+  }
+  .play-ascii{
+    width:36px;height:36px;border:1px solid var(--mint);color:var(--mint);
+    display:flex;align-items:center;justify-content:center;font-size:14px;
+    background:#06140e;
+    box-shadow:inset 0 0 0 1px rgba(63,240,165,.15), 2px 2px 0 #000;
+  }
+  .ep b{
+    font-weight:400;font-size:8.5px;letter-spacing:.1em;padding:5px 8px;
+    border:1px solid #2a2a2a;display:inline-block;margin-right:2px;cursor:pointer;
+  }
+  .ep b.sel{background:#e8e8e8;color:#050505;border-color:#e8e8e8}
+  .ep-ascii b{
+    font-weight:400;font-size:8.5px;letter-spacing:.1em;padding:5px 8px;
+    border:1px solid #2a1a1a;display:inline-block;margin-right:2px;color:#666;
+  }
+  .ep-ascii b.sel{
+    background:var(--red);color:#fff;border-color:var(--red);
+    box-shadow:2px 2px 0 #000;
+  }
+
+  /* wake */
+  .wake{
+    height:200px;border:1px solid #2a1010;position:relative;overflow:hidden;background:#000;
+  }
+  .wake .noisefield{
+    position:absolute;inset:0;font-size:8px;line-height:10px;color:#151515;
+    white-space:pre;padding:4px;letter-spacing:.12em;overflow:hidden;
+  }
+  .wake .center{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;z-index:2;text-align:center;
+  }
+  .wake .logo{font-size:18px;letter-spacing:.8em;color:#e8e8e8;margin-bottom:10px}
+  .wake .cta{
+    background:var(--red);color:#fff;font-size:9px;letter-spacing:.2em;
+    padding:4px 14px;box-shadow:3px 3px 0 #000;
+    animation:blink 1.2s steps(2) infinite;
+  }
+  .wake .boot{
+    margin-top:14px;font-size:8px;color:#3a3a3a;letter-spacing:.1em;line-height:1.7;
+  }
+  @keyframes blink{50%{opacity:.45}}
+
+  /* divider demo */
+  .quad{
+    display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+    height:280px;border:1px solid #3a1010;position:relative;overflow:hidden;background:#000;
+  }
+  .quad .cell{position:relative;overflow:hidden;border:1px solid #2a0a0a}
+  .quad .cell .c{position:absolute;inset:0;font-size:8px;line-height:9px;color:#181818;
+    white-space:pre;padding:3px;letter-spacing:.1em;overflow:hidden}
+
+  .note{
+    margin-top:12px;font-size:8.5px;letter-spacing:.08em;color:#444;line-height:1.6;
+    border-left:2px solid #3a1010;padding-left:10px;
+  }
+  .sum{border:1px solid #2a1010;padding:16px 18px;background:#050505}
+  .sum li{list-style:none;font-size:9.5px;letter-spacing:.06em;color:#7a7a7a;
+    margin-bottom:6px;line-height:1.5}
+  .sum li span{color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>TOMO // ASCII TERMINAL PREVIEW <span>— REF ALIGNED</span></h1>
+  <div class="sub">
+    KIERUNEK: surowy terminal / glyph field / pixel blobs / czerwone label-bary.<br>
+    BEZ glassmorphism, BEZ border-radius, BEZ soft neon UI. Hatch + ASCII zostaje DNA.
+  </div>
+
+  <!-- 0 FULL FIELD -->
+  <div class="section">
+    <div class="st">00 — CANVAS FIELD (GŁÓWNY LOOK)</div>
+    <div class="sd">
+      Tło pełne ASCII noise (`.` `#` `+` `@`). Bodies = kolorowe pixel-bloki + glyphs na wierzchu.
+      Hover = solidny czerwony bar `-BODY.SINE`. Circuit-tree dekoracje. Reticle zamiast soft glow.
+    </div>
+    <div class="field" id="mainfield">
+      <div class="chars" id="fieldchars"></div>
+      <!-- cyan body -->
+      <div class="pxlayer" style="left:70px;top:48px;grid-template-columns:repeat(7,7px)">
+        <i style="background:#1a4a6a"></i><i style="background:#2a7aaa"></i><i style="background:#35d8e8"></i><i style="background:#8aecf5"></i><i style="background:#35d8e8"></i><i style="background:#2a7aaa"></i><i style="background:#1a4a6a"></i>
+        <i style="background:#2a7aaa"></i><i style="background:#35d8e8"></i><i style="background:#c0f8ff"></i><i style="background:#fff"></i><i style="background:#c0f8ff"></i><i style="background:#35d8e8"></i><i style="background:#2a7aaa"></i>
+        <i style="background:#35d8e8"></i><i style="background:#8aecf5"></i><i style="background:#fff"></i><i style="background:#fff"></i><i style="background:#fff"></i><i style="background:#8aecf5"></i><i style="background:#35d8e8"></i>
+        <i style="background:#2a7aaa"></i><i style="background:#35d8e8"></i><i style="background:#8aecf5"></i><i style="background:#c0f8ff"></i><i style="background:#8aecf5"></i><i style="background:#35d8e8"></i><i style="background:#2a7aaa"></i>
+        <i style="background:#1a4a6a"></i><i style="background:#2a7aaa"></i><i style="background:#35d8e8"></i><i style="background:#8aecf5"></i><i style="background:#35d8e8"></i><i style="background:#2a7aaa"></i><i style="background:#1a4a6a"></i>
+      </div>
+      <div class="blob cyan" style="left:72px;top:50px">.@&#35;+&amp;%
+e@&amp;$&#35;?
++&#35;@*&amp;%
+(&#35;@$+*
+.@+&#35;%</div>
+      <div class="labelbar" style="left:18px;top:28px">-Hover unit</div>
+      <div class="circuit" style="left:18px;top:90px">[]
+||=
+[]
+||=
+[]</div>
+
+      <!-- purple body -->
+      <div class="pxlayer" style="left:340px;top:30px;grid-template-columns:repeat(5,7px)">
+        <i style="background:#3a2060"></i><i style="background:#6a30a0"></i><i style="background:#a060ff"></i><i style="background:#6a30a0"></i><i style="background:#3a2060"></i>
+        <i style="background:#6a30a0"></i><i style="background:#a060ff"></i><i style="background:#d0a0ff"></i><i style="background:#a060ff"></i><i style="background:#6a30a0"></i>
+        <i style="background:#a060ff"></i><i style="background:#d0a0ff"></i><i style="background:#fff"></i><i style="background:#d0a0ff"></i><i style="background:#a060ff"></i>
+        <i style="background:#6a30a0"></i><i style="background:#a060ff"></i><i style="background:#d0a0ff"></i><i style="background:#a060ff"></i><i style="background:#6a30a0"></i>
+        <i style="background:#3a2060"></i><i style="background:#6a30a0"></i><i style="background:#a060ff"></i><i style="background:#6a30a0"></i><i style="background:#3a2060"></i>
+        <i style="background:transparent"></i><i style="background:#3a2060"></i><i style="background:#6a30a0"></i><i style="background:#3a2060"></i><i style="background:transparent"></i>
+        <i style="background:transparent"></i><i style="background:transparent"></i><i style="background:#3a2060"></i><i style="background:transparent"></i><i style="background:transparent"></i>
+      </div>
+      <div class="blob purple" style="left:342px;top:32px">e@&amp;$
+&#35;@$%&amp;
++&#35;*@?
+.&amp;&#35;$+
+(@&#35;%
+ +&#35;
+  *</div>
+      <div class="circuit" style="left:300px;top:40px">[]=
+[]=
+[]</div>
+
+      <!-- green body -->
+      <div class="pxlayer" style="left:90px;top:130px;grid-template-columns:repeat(8,7px)">
+        <i style="background:#0a2a18"></i><i style="background:#1a5a30"></i><i style="background:#2a8a48"></i><i style="background:#3ff0a5"></i><i style="background:#3ff0a5"></i><i style="background:#2a8a48"></i><i style="background:#1a5a30"></i><i style="background:#0a2a18"></i>
+        <i style="background:#1a5a30"></i><i style="background:#2a8a48"></i><i style="background:#3ff0a5"></i><i style="background:#8ff9d0"></i><i style="background:#8ff9d0"></i><i style="background:#3ff0a5"></i><i style="background:#2a8a48"></i><i style="background:#1a5a30"></i>
+        <i style="background:#2a8a48"></i><i style="background:#3ff0a5"></i><i style="background:#8ff9d0"></i><i style="background:#fff"></i><i style="background:#fff"></i><i style="background:#8ff9d0"></i><i style="background:#3ff0a5"></i><i style="background:#2a8a48"></i>
+        <i style="background:#1a5a30"></i><i style="background:#2a8a48"></i><i style="background:#3ff0a5"></i><i style="background:#8ff9d0"></i><i style="background:#3ff0a5"></i><i style="background:#2a8a48"></i><i style="background:#1a5a30"></i><i style="background:transparent"></i>
+      </div>
+      <div class="blob green" style="left:92px;top:132px">.+&#35;@&amp;%*[
+&#35;@$+&amp;%&#35;(
++&#35;@*&amp;$%#
+.@&#35;+%</div>
+      <div class="reticle" style="left:118px;top:142px"></div>
+      <div class="cursor-mark" style="left:140px;top:158px"></div>
+      <div class="circuit" style="left:18px;top:150px">[]
+||=
+[]</div>
+
+      <!-- orange body -->
+      <div class="pxlayer" style="left:380px;top:130px;grid-template-columns:repeat(6,7px)">
+        <i style="background:#4a2000"></i><i style="background:#8a3a10"></i><i style="background:#ff7a2f"></i><i style="background:#ffe14d"></i><i style="background:#ff7a2f"></i><i style="background:#8a3a10"></i>
+        <i style="background:#8a3a10"></i><i style="background:#ff7a2f"></i><i style="background:#ffe14d"></i><i style="background:#fff"></i><i style="background:#ffe14d"></i><i style="background:#ff7a2f"></i>
+        <i style="background:#ff7a2f"></i><i style="background:#ffe14d"></i><i style="background:#fff"></i><i style="background:#fff"></i><i style="background:#ffe14d"></i><i style="background:#ff7a2f"></i>
+        <i style="background:#8a3a10"></i><i style="background:#ff7a2f"></i><i style="background:#ffe14d"></i><i style="background:#ff7a2f"></i><i style="background:#8a3a10"></i><i style="background:#4a2000"></i>
+      </div>
+      <div class="blob orange" style="left:382px;top:132px">%&amp;*&#35;@$
+&amp;%&#35;*@+
+*&#35;@$&amp;%
+.%&#35;+&amp;</div>
+      <div class="cursor-mark" style="left:430px;top:170px"></div>
+    </div>
+    <div class="note">Bodies rysowane w 2 warstwach: (1) pixel block fill w kolorze roli · (2) ASCII overlay w tym samym kolorze. Grid tła = stałe znaki, nie feTurbulence.</div>
+  </div>
+
+  <!-- 1 QUAD REF -->
+  <div class="section">
+    <div class="st">01 — QUADRANT REF (JAK NA SCREENIE)</div>
+    <div class="sd">2×2 split cienkimi czerwonymi liniami. Każdy kwadrant = inna substancja / body role.</div>
+    <div class="quad" id="quad"></div>
+  </div>
+
+  <!-- 2 PANELS -->
+  <div class="section">
+    <div class="st">02 — PANELE: CZERWONY HEADER BAR</div>
+    <div class="sd">Zamiast lavender frame → ciemnoczerwony border + solid red title bar (`-Hover unit` style). ASCII deco w tle panelu.</div>
+    <div class="grid2">
+      <div class="box" data-l="teraz">
+        <div class="panel-old">
+          <div style="font-size:8.5px;letter-spacing:.2em;color:#5a5a5a;margin-bottom:8px">SUBSTANCE / MATCH</div>
+          <div style="font-size:10px">SINE → C3</div>
+          <div style="font-size:10px;margin-top:4px">GRAIN → E4</div>
+        </div>
+      </div>
+      <div class="box new" data-l="nowe">
+        <div class="panel-ascii">
+          <div class="ph"><span>-Substance dock</span><span>MATCH</span></div>
+          <div class="pb">
+            <div><b>@</b> SINE <span class="g">→ C3</span></div>
+            <div><b>#</b> GRAIN <span class="g">→ E4</span></div>
+            <div><b>%</b> PULSE <span class="o">→ G2</span></div>
+            <div style="margin-top:6px;color:#333">ANGLE=WHEN · SIZE=MASS</div>
+          </div>
+          <div class="deco">[]
+||=
+[]
+||=
+[]</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 CHIPS -->
+  <div class="section">
+    <div class="st">03 — SUBSTANCE CHIPS Z GLYPH PREFIX</div>
+    <div class="sd">Każda substancja ma stały glyph (`@` `#` `%` `*`). Hover = czerwony border jak label bar, nie soft glow.</div>
+    <div class="grid2">
+      <div class="box" data-l="teraz">
+        <div class="chip-old"><div class="sw" style="background:var(--mint)"></div>SINE<span style="margin-left:auto;color:#2a2a2a;font-size:8px">1</span></div>
+        <div class="chip-old"><div class="sw" style="background:var(--cyan)"></div>GRAIN<span style="margin-left:auto;color:#2a2a2a;font-size:8px">2</span></div>
+        <div class="chip-old"><div class="sw" style="background:var(--orange)"></div>PULSE<span style="margin-left:auto;color:#2a2a2a;font-size:8px">3</span></div>
+      </div>
+      <div class="box new" data-l="nowe">
+        <div class="chip-ascii on"><span class="glyph" style="color:var(--mint)">@</span><div class="sw" style="color:var(--mint)"></div>SINE<span class="kb">1</span></div>
+        <div class="chip-ascii"><span class="glyph" style="color:var(--cyan)">#</span><div class="sw" style="color:var(--cyan)"></div>GRAIN<span class="kb">2</span></div>
+        <div class="chip-ascii"><span class="glyph" style="color:var(--orange)">%</span><div class="sw" style="color:var(--orange)"></div>PULSE<span class="kb">3</span></div>
+        <div class="chip-ascii"><span class="glyph" style="color:var(--purple)">*</span><div class="sw" style="color:var(--purple)"></div>AIR<span class="kb">4</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 LATTICE -->
+  <div class="section">
+    <div class="st">04 — LATTICE: HATCH + GLYPH W KOMÓRKACH</div>
+    <div class="sd">Aktywny step = hatch fill + znak `#`. Current beat = czerwony border (jak divider na ref).</div>
+    <div class="grid2">
+      <div class="box" data-l="teraz">
+        <div class="lat" id="latold"></div>
+      </div>
+      <div class="box new" data-l="nowe">
+        <div class="lat ascii" id="latnew"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 METERS -->
+  <div class="section">
+    <div class="st">05 — METRY Z ASCII OVERLAY NA TRACKU</div>
+    <div class="sd">Zostaje hatch fill (nie gradient). Na pasku leży półprzezroczysty string `########++++....`.</div>
+    <div class="grid2">
+      <div class="box" data-l="teraz">
+        <div class="mrow"><span class="k">STRESS</span><div class="mtrack"><div class="mbar" style="width:65%;--c:var(--orange)"></div></div><span class="n">65</span></div>
+        <div class="mrow"><span class="k">DENSITY</span><div class="mtrack"><div class="mbar" style="width:42%;--c:var(--mint)"></div></div><span class="n">42</span></div>
+        <div class="mrow"><span class="k">OVERLAP</span><div class="mtrack"><div class="mbar" style="width:80%;--c:var(--cyan)"></div></div><span class="n">80</span></div>
+      </div>
+      <div class="box new" data-l="nowe">
+        <div class="mrow"><span class="k">STRESS</span><div class="mtrack ascii" data-g="########++++...."><div class="mbar" style="width:65%;--c:var(--orange)"></div></div><span class="n">65</span></div>
+        <div class="mrow"><span class="k">DENSITY</span><div class="mtrack ascii" data-g="#####+++++++..."><div class="mbar" style="width:42%;--c:var(--mint)"></div></div><span class="n">42</span></div>
+        <div class="mrow"><span class="k">OVERLAP</span><div class="mtrack ascii" data-g="##########++..."><div class="mbar" style="width:80%;--c:var(--cyan)"></div></div><span class="n">80</span></div>
+        <div class="mrow"><span class="k">SPLICE</span><div class="mtrack ascii" data-g="###++++++++++++"><div class="mbar" style="width:28%;--c:var(--red)"></div></div><span class="n">28</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6 FEED -->
+  <div class="section">
+    <div class="st">06 — EVENT FEED JAK TERMINAL LOG</div>
+    <div class="sd">Gęstsze prefixy (`@@@@` `-!-` `####`), timestamp ASCII, zero zaokrągleń.</div>
+    <div class="grid2">
+      <div class="box" data-l="teraz">
+        <div style="border:1px solid #c8c0d8">
+          <div style="background:var(--pink);color:#111;font-size:8px;letter-spacing:.18em;padding:4px 8px">STREAM // OPEN</div>
+          <div style="background:rgba(255,45,138,.92);color:#1a080e;padding:7px 8px;font-size:9px;line-height:1.55">
+            <div>BODY.SINE → C3 GATE ON</div>
+            <div>CONNECT SINE↔GRAIN</div>
+            <div>EPOCH → MORPH</div>
+          </div>
+        </div>
+      </div>
+      <div class="box new" data-l="nowe">
+        <div class="feed-ascii">
+          <div class="bar">-Stream // open</div>
+          <div class="body">
+            <div><span class="d">14.2</span> @@@@ BODY.SINE gate on</div>
+            <div><span class="d">13.8</span> -!- CONNECT sine↔grain</div>
+            <div><span class="d">12.1</span> #### EPOCH → morph</div>
+            <div><span class="d">11.0</span> **** KEY pole locked</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7 TRANSPORT -->
+  <div class="section">
+    <div class="st">07 — TRANSPORT: CZERWONY SELECT, OSTRY PLAY</div>
+    <div class="sd">Epoch select = czerwony solid fill (jak label bar). Play = ostry kwadrat z mint hatch, nie kółko.</div>
+    <div class="grid2">
+      <div class="box" data-l="teraz">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div class="play-box">▶</div>
+          <div class="ep"><b>IDLE</b><b class="sel">MORPH</b><b>FLUX</b></div>
+        </div>
+      </div>
+      <div class="box new" data-l="nowe">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div class="play-ascii">▶</div>
+          <div class="ep-ascii"><b>IDLE</b><b class="sel">MORPH</b><b>FLUX</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8 WAKE -->
+  <div class="section">
+    <div class="st">08 — WAKE: ASCII BOOT + CZERWONY CTA</div>
+    <div class="sd">Pełny glyph field + boot log. CTA = czerwony bar jak `-Hover unit`, nie miękki pulse.</div>
+    <div class="wake">
+      <div class="noisefield" id="wakenoise"></div>
+      <div class="center">
+        <div class="logo">TOMO</div>
+        <div class="cta">-Click to wake</div>
+        <div class="boot">
+          &gt; INIT BIOLAB-03<br>
+          &gt; LOAD MATCH BANK …… OK<br>
+          &gt; SECTION DIVISION …… READY
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="section">
+    <div class="st">CO WDRAŻAMY (JEŚLI OK)</div>
+    <div class="sum">
+      <ul>
+        <li><span>01</span> — Canvas: ASCII noise field zamiast samego ditheru</li>
+        <li><span>02</span> — Bodies: pixel-block fill + glyph overlay w kolorze roli</li>
+        <li><span>03</span> — Hover/select: czerwony label bar (`-BODY.SINE`) + reticle</li>
+        <li><span>04</span> — Circuit-tree deco (`[]=|`) przy dock / inspector</li>
+        <li><span>05</span> — Panele: czerwony header bar, ciemnoczerwony border (nie lavender glass)</li>
+        <li><span>06</span> — Lattice / meters: hatch zostaje + ASCII w komórkach</li>
+        <li><span>07</span> — Feed / wake: gęstszy terminal log, czerwony CTA</li>
+      </ul>
+      <div style="margin-top:14px;font-size:8.5px;color:#3a3a3a;letter-spacing:.1em">
+        ŚWIADOMIE ODRZUCAMY: backdrop-blur · border-radius · soft glow pills · circular play · gradient meters
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GLYPHS = '.#+(@&%*[)].:+@$e?';
+function fillNoise(el, cols, rows){
+  let s='';
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      s += Math.random()<.72 ? GLYPHS[(Math.random()*GLYPHS.length)|0] : ' ';
+    }
+    s+='\n';
+  }
+  el.textContent=s;
+}
+fillNoise(document.getElementById('fieldchars'), 90, 22);
+fillNoise(document.getElementById('wakenoise'), 110, 22);
+
+/* lattice */
+function buildLat(id, ascii){
+  const el=document.getElementById(id);
+  const on=[1,3,6,8,11,14];
+  for(let i=0;i<16;i++){
+    const d=document.createElement('div');
+    if(on.includes(i)) d.classList.add('on');
+    if(ascii && i===4) d.classList.add('now');
+    if(!ascii) d.innerHTML='<i style="width:6px;height:6px;background:#222;display:block"></i>';
+    el.appendChild(d);
+  }
+}
+buildLat('latold', false);
+buildLat('latnew', true);
+
+/* quad demo */
+const quad=document.getElementById('quad');
+const themes=[
+  {c:'#35d8e8', label:'-Hover unit', glyphs:'e@&#35;+$%&*?'},
+  {c:'#a060ff', label:'-Pillar', glyphs:'@&#35;$%&*e+?'},
+  {c:'#3ff0a5', label:'-Tactical', glyphs:'+&#35;@&%*[].'},
+  {c:'#ff7a2f', label:'-Heatmap', glyphs:'%&*&#35;@$+e'},
+];
+themes.forEach((t,i)=>{
+  const cell=document.createElement('div');
+  cell.className='cell';
+  const noise=document.createElement('div');
+  noise.className='c';
+  let ns='';
+  for(let y=0;y<16;y++){
+    for(let x=0;x<40;x++) ns+=Math.random()<.65?GLYPHS[(Math.random()*GLYPHS.length)|0]:' ';
+    ns+='\n';
+  }
+  noise.textContent=ns;
+  cell.appendChild(noise);
+
+  const bar=document.createElement('div');
+  bar.className='labelbar';
+  bar.style.left='8px'; bar.style.top='8px';
+  bar.textContent=t.label;
+  cell.appendChild(bar);
+
+  const blob=document.createElement('div');
+  blob.className='blob';
+  blob.style.color=t.c;
+  blob.style.textShadow=`0 0 8px ${t.c}55`;
+  blob.style.left='40px'; blob.style.top='40px';
+  blob.style.fontSize='11px'; blob.style.lineHeight='12px';
+  const rows=[];
+  for(let r=0;r<5;r++){
+    let row='';
+    for(let c=0;c<8;c++) row+=t.glyphs.replace(/&#35;/g,'#')[(Math.random()*t.glyphs.replace(/&#35;/g,'#').length)|0];
+    rows.push(row);
+  }
+  blob.textContent=rows.join('\n');
+  cell.appendChild(blob);
+
+  if(i===2){
+    const r=document.createElement('div');
+    r.className='reticle';
+    r.style.left='70px'; r.style.top='55px';
+    cell.appendChild(r);
+  }
+  const circ=document.createElement('div');
+  circ.className='circuit';
+  circ.style.left='6px'; circ.style.top='50px';
+  circ.textContent='[]\n||=\n[]\n||=';
+  cell.appendChild(circ);
+
+  quad.appendChild(cell);
+});
+</script>
+</body>
+</html>

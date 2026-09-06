@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>TOMO — Usability (#2)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap');
+  :root{
+    --mono:"IBM Plex Mono",Consolas,monospace;
+    --mint:#3ff0a5; --cyan:#35d8e8; --orange:#ff7a2f; --yellow:#ffe14d;
+    --pink:#ff2d8a; --red:#ff3b30; --soft:#5a1818;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#050505;color:#e8e8e8;font-family:var(--mono)}
+  .page{max-width:1180px;margin:0 auto;padding:32px 22px 80px}
+  h1{font-size:11px;letter-spacing:.42em;color:var(--red);margin-bottom:8px}
+  .sub{font-size:10px;letter-spacing:.05em;color:#6a6a6a;line-height:1.7;margin-bottom:18px;max-width:900px}
+  .explain{
+    border:1px solid #2a1a1a;background:#0a0a0a;padding:14px 16px;margin-bottom:28px;
+    font-size:9px;letter-spacing:.04em;color:#8a8a8a;line-height:1.7;max-width:900px;
+  }
+  .explain b{color:#e8c8c8;font-weight:400}
+  .explain .k{color:var(--orange);letter-spacing:.14em;display:block;margin-bottom:8px;font-size:9px}
+  .explain ul{margin:8px 0 0 14px}
+  .explain li{margin-bottom:4px}
+  .hint{font-size:9px;letter-spacing:.14em;color:#555;margin-bottom:28px}
+  .hint b{color:var(--orange);font-weight:400}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:26px 20px}
+  @media(max-width:920px){.grid{grid-template-columns:1fr}}
+  .ct{font-size:10px;letter-spacing:.26em;color:var(--orange);margin-bottom:6px}
+  .ct.now{color:var(--cyan)}
+  .cd{font-size:9px;letter-spacing:.04em;color:#777;line-height:1.55;margin-bottom:10px;min-height:3.2em}
+  .stage{height:280px;border:1px solid #2a1a1a;background:#000;position:relative;overflow:hidden;cursor:crosshair}
+  .stage canvas{display:block;width:100%;height:100%}
+  .tags{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+  .tags span{font-size:8px;letter-spacing:.12em;padding:3px 7px;border:1px solid #2a2a2a;color:#555}
+  .tags .g{border-color:rgba(63,240,165,.4);color:var(--mint)}
+  .tags .b{border-color:rgba(255,122,47,.4);color:var(--orange)}
+  .tags .r{border-color:rgba(255,59,48,.45);color:var(--red)}
+  .rec{margin-top:36px;padding-top:22px;border-top:1px solid #222}
+  .rec .ct{color:var(--mint)}
+  .rec .cd{min-height:0;max-width:860px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>USABILITY · #2</h1>
+  <p class="sub">
+    Nie nowy look i nie nowe brzmienie — <b>czytelność w gęstym groove</b>.
+    Canvas już jest spójny; problem pojawia się gdy grasz PEAK/CLUB z wieloma bodies:
+    select, L-labelki i overlaps zaczynają walczyć o uwagę z muzyką.
+  </p>
+
+  <div class="explain">
+    <span class="k">O CO CHODZI</span>
+    Trzy konkretne tarcia w obecnym draw:
+    <ul>
+      <li><b>Select = biały kwadrat</b> wokół body — przy hicie + particles wygląda jak kolejny trigger FX (wcześniej już wycięliśmy kwadrat z hitu).</li>
+      <li><b>L1 / L2 / L3…</b> — każdy cut na meridianie dostaje ramkę + label. Przy 5–8 bodies w jednej fazie robi się rząd zielonych pudełek.</li>
+      <li><b>Overlap dyski</b> — każde przecięcie ciał rysuje soczewkę. W PEAK to chmura cyan/żółtych krążków pod bodies.</li>
+    </ul>
+    Numer 2 = wyciszyć te cue’y albo pokazywać je <b>tylko gdy pomagają</b> (hover / select / splice).
+  </div>
+
+  <p class="hint">KLIKNIJ BODY NA STAGE · hover działa · porównaj clutter</p>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="rec">
+    <div class="ct">REKOMENDACJA</div>
+    <p class="cd">
+      Najlepszy stos: <b style="color:var(--mint);font-weight:400">B · QUIET CHROME</b>
+      (select = cienki ring, bez kwadratu) + z <b style="color:var(--mint);font-weight:400">C · SMART LABELS</b>
+      reguła „L tylko dla aktywnego cut / max 2”. Overlaps zostają, ale bledsze albo tylko przy splice/hover.
+    </p>
+  </div>
+</div>
+
+<script>
+const ROLES = {
+  PULSE:{col:'#f2f2f2',wire:'#fff'}, FOUNDATION:{col:'#ff7a2f',wire:'#ffa066'},
+  COLOR:{col:'#3ff0a5',wire:'#8ff9d0'}, TENSION:{col:'#35d8e8',wire:'#8aecf5'},
+  AIR:{col:'#9aa0a6',wire:'#c3c8cc'},
+};
+function hexA(hex,a){
+  const h=hex.slice(1);
+  const n=parseInt(h.length===3?h[0]+h[0]+h[1]+h[1]+h[2]+h[2]:h,16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+function stipple(seed,n=32){
+  let rnd=seed; const R=()=>{rnd=(rnd*16807)%2147483647;return rnd/2147483647;};
+  const p=[];
+  for(let i=0;i<n;i++){
+    const a=R()*Math.PI*2, rr=0.34+0.66*Math.pow(R(),0.35);
+    p.push([Math.cos(a)*rr,Math.sin(a)*rr,R()]);
+  }
+  return p;
+}
+
+const CONCEPTS = [
+  {
+    id:'A', title:'A · NOW (problem)',
+    now:true,
+    desc:'Biały select-square, wszystkie L-boxy naraz, pełne overlap soczewki. Przy gęstym układzie bodies giną w chrome.',
+    tags:[['r','current'],['b','clutter']],
+    mode:'now'
+  },
+  {
+    id:'B', title:'B · QUIET CHROME',
+    desc:'Select = cienki ring w kolorze roli (bez kwadratu). Hover tylko podbija label. Hit markers tylko na select, nie na samym hover.',
+    tags:[['g','mniej hałasu'],['g','łatwy fix']],
+    mode:'quiet'
+  },
+  {
+    id:'C', title:'C · SMART LABELS',
+    desc:'Max 2 L-labelki (najbliższe tipowi meridianu). Overlap rysuj tylko gdy spliced albo body jest selected/hovered. Reszta cisza.',
+    tags:[['g','czytelny groove'],['b','trochę logiki']],
+    mode:'smart'
+  },
+  {
+    id:'D', title:'D · FOCUS MODE',
+    desc:'Niewybrane bodies przygaszone (alpha ↓). Pełny chrome tylko na focus. Najmocniejsza czytelność, ale zmienia „wszystko widać”.',
+    tags:[['g','max focus'],['b','inne feel']],
+    mode:'focus'
+  },
+];
+
+function mount(c){
+  const card=document.createElement('div');
+  card.innerHTML=`
+    <div class="ct${c.now?' now':''}">${c.title}</div>
+    <div class="cd">${c.desc}</div>
+    <div class="stage"><canvas></canvas></div>
+    <div class="tags">${c.tags.map(([k,t])=>`<span class="${k}">${t}</span>`).join('')}</div>
+  `;
+  document.getElementById('grid').appendChild(card);
+  const stage=card.querySelector('.stage');
+  const cv=stage.querySelector('canvas');
+  const ctx=cv.getContext('2d');
+  let W=0,H=0,dpr=1, sel=1, hover=-1;
+
+  const bodies=[
+    {role:'COLOR',x:0,y:0,r:42,id:3,stipple:stipple(11)},
+    {role:'FOUNDATION',x:0,y:0,r:36,id:2,stipple:stipple(22)},
+    {role:'PULSE',x:0,y:0,r:16,id:1,stipple:stipple(33,18)},
+    {role:'TENSION',x:0,y:0,r:30,id:4,stipple:stipple(44)},
+    {role:'AIR',x:0,y:0,r:48,id:5,stipple:stipple(55,28)},
+  ];
+
+  function layout(){
+    dpr=Math.min(1.5,devicePixelRatio||1);
+    const r=stage.getBoundingClientRect();
+    W=r.width; H=r.height;
+    cv.width=(W*dpr)|0; cv.height=(H*dpr)|0;
+    cv.style.width=W+'px'; cv.style.height=H+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const CX=W*0.45, CY=H*0.52;
+    // crowded cluster like PEAK
+    bodies[0].x=CX-8; bodies[0].y=CY-10;
+    bodies[1].x=CX+20; bodies[1].y=CY+4;
+    bodies[2].x=CX-2; bodies[2].y=CY+26;
+    bodies[3].x=CX+38; bodies[3].y=CY-28;
+    bodies[4].x=CX-36; bodies[4].y=CY+8;
+  }
+  layout();
+  addEventListener('resize', layout);
+
+  function hitTest(mx,my){
+    let best=-1, bd=1e9;
+    for(let i=0;i<bodies.length;i++){
+      const b=bodies[i], d=Math.hypot(mx-b.x,my-b.y);
+      if(d<b.r && d<bd){ bd=d; best=i; }
+    }
+    return best;
+  }
+  stage.addEventListener('mousemove', e=>{
+    const r=stage.getBoundingClientRect();
+    hover=hitTest(e.clientX-r.left, e.clientY-r.top);
+  });
+  stage.addEventListener('mouseleave', ()=> hover=-1);
+  stage.addEventListener('click', e=>{
+    const r=stage.getBoundingClientRect();
+    const i=hitTest(e.clientX-r.left, e.clientY-r.top);
+    if(i>=0) sel=i;
+  });
+
+  function drawBody(b, i, mode, th){
+    const cfg=ROLES[b.role];
+    const isSel=sel===i, isHov=hover===i;
+    let dim=1;
+    if(mode==='focus' && !isSel && !isHov) dim=0.35;
+
+    ctx.save();
+    ctx.globalAlpha=dim;
+    ctx.translate(b.x,b.y);
+    ctx.fillStyle=cfg.col;
+    ctx.globalAlpha=dim*0.55;
+    for(const [sx,sy,v] of b.stipple){
+      ctx.fillRect((sx*b.r)|0,(sy*b.r)|0,v>0.75?2:1,v>0.75?2:1);
+    }
+    ctx.restore();
+    ctx.globalAlpha=dim;
+    ctx.strokeStyle=hexA(cfg.wire,0.5); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.stroke();
+
+    // select chrome
+    if(isSel){
+      if(mode==='now'){
+        ctx.strokeStyle='#e8e8e8';
+        const p=b.r+9;
+        ctx.strokeRect(b.x-p,b.y-p,p*2,p*2);
+      }else{
+        // quiet ring
+        ctx.strokeStyle=hexA(cfg.wire,0.85);
+        ctx.beginPath(); ctx.arc(b.x,b.y,b.r+5,0,Math.PI*2); ctx.stroke();
+        if(mode==='quiet' || mode==='smart' || mode==='focus'){
+          ctx.strokeStyle=hexA(cfg.col,0.35);
+          ctx.setLineDash([2,3]);
+          ctx.beginPath(); ctx.arc(b.x,b.y,b.r+9,0,Math.PI*2); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+    }
+
+    // label
+    const labAlpha = isSel?0.95 : (isHov?0.75 : (mode==='focus'?0.25:0.4));
+    ctx.font='9px IBM Plex Mono,monospace';
+    ctx.fillStyle=hexA(cfg.col, labAlpha*dim);
+    ctx.textAlign='left';
+    const tag=b.role==='PULSE'?'KICK':b.role;
+    ctx.fillText(tag+' '+String(b.id).padStart(2,'0'), b.x+b.r+8, b.y-2);
+    ctx.globalAlpha=1;
+  }
+
+  function drawOverlaps(mode){
+    for(let i=0;i<bodies.length;i++)
+      for(let j=i+1;j<bodies.length;j++){
+        const a=bodies[i], b=bodies[j];
+        const d=Math.hypot(a.x-b.x,a.y-b.y);
+        if(d>=a.r+b.r || d<=Math.abs(a.r-b.r)) continue;
+        const mx=(a.x*b.r+b.x*a.r)/(a.r+b.r), my=(a.y*b.r+b.y*a.r)/(a.r+b.r);
+        const rr=Math.max(4, Math.min(a.r,b.r)*0.4);
+        const focus = sel===i||sel===j||hover===i||hover===j;
+        // fake splice between 0 and 1
+        const spliced = (i===0&&j===1);
+
+        if(mode==='smart' || mode==='focus'){
+          if(!spliced && !focus) continue;
+        }
+        const al = mode==='now' ? 1 : (spliced?1:0.55);
+        ctx.globalAlpha=al;
+        ctx.beginPath(); ctx.arc(mx,my,rr,0,Math.PI*2);
+        ctx.fillStyle=spliced?'rgba(255,225,77,.14)':'rgba(53,216,232,.1)';
+        ctx.fill();
+        ctx.strokeStyle=spliced?'rgba(255,225,77,.55)':'rgba(53,216,232,.35)';
+        ctx.lineWidth=1; ctx.stroke();
+        ctx.globalAlpha=1;
+      }
+  }
+
+  function drawCuts(mode, th, CX, CY){
+    // fake cuts: project bodies onto meridian ray
+    const pts=[];
+    for(const b of bodies){
+      const dx=b.x-CX, dy=b.y-CY;
+      const along=dx*Math.cos(th)+dy*Math.sin(th);
+      if(along<8) continue;
+      const dist=Math.hypot(dx - Math.cos(th)*along, dy - Math.sin(th)*along);
+      if(dist>b.r*0.95) continue;
+      pts.push({x:CX+Math.cos(th)*along, y:CY+Math.sin(th)*along, along});
+    }
+    pts.sort((a,b)=>a.along-b.along);
+
+    let show=pts;
+    if(mode==='smart' || mode==='focus'){
+      // only 2 closest to tip (largest along)
+      show=pts.slice(-2);
+    }
+
+    if(show.length>1 && mode==='now'){
+      ctx.strokeStyle='rgba(255,225,77,.5)'; ctx.lineWidth=1;
+      ctx.beginPath();
+      for(let i=0;i<show.length;i++) i?ctx.lineTo(show[i].x,show[i].y):ctx.moveTo(show[i].x,show[i].y);
+      ctx.stroke();
+    }
+
+    ctx.font='8px IBM Plex Mono,monospace';
+    for(let i=0;i<show.length;i++){
+      const p=show[i];
+      if(mode==='now'){
+        ctx.strokeStyle='rgba(63,240,165,.85)';
+        ctx.strokeRect(p.x-7,p.y-7,14,14);
+        ctx.fillStyle='rgba(63,240,165,.65)';
+        ctx.fillText('L'+(i+1), p.x+10, p.y+3);
+      }else if(mode==='quiet'){
+        ctx.fillStyle='#3ff0a5';
+        ctx.fillRect((p.x-1)|0,(p.y-1)|0,3,3);
+        if(i===show.length-1){
+          ctx.globalAlpha=0.7;
+          ctx.fillText('L'+(i+1), p.x+8, p.y+3);
+          ctx.globalAlpha=1;
+        }
+      }else{
+        ctx.fillStyle='#3ff0a5';
+        ctx.fillRect((p.x-1)|0,(p.y-1)|0,3,3);
+        ctx.globalAlpha=0.75;
+        ctx.fillText('L'+(i+1), p.x+8, p.y+3);
+        ctx.globalAlpha=1;
+      }
+    }
+  }
+
+  function frame(){
+    const CX=W*0.45, CY=H*0.52, MR=Math.min(W,H)*0.36;
+    const t=performance.now()/1000;
+    const th=-Math.PI/2 + (t*0.35)%(Math.PI*2);
+
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+    // dark dither hint
+    ctx.fillStyle='#080808';
+    for(let y=0;y<H;y+=8) for(let x=(y/8|0)%2;x<W;x+=8) ctx.fillRect(x,y,1,1);
+
+    ctx.strokeStyle='rgba(255,255,255,.1)';
+    ctx.beginPath(); ctx.arc(CX,CY,MR,0,Math.PI*2); ctx.stroke();
+
+    const tipX=CX+Math.cos(th)*MR*1.05, tipY=CY+Math.sin(th)*MR*1.05;
+    ctx.strokeStyle='rgba(53,216,232,.85)'; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.moveTo(CX,CY); ctx.lineTo(tipX,tipY); ctx.stroke();
+    ctx.fillStyle='#35d8e8'; ctx.fillRect(tipX-2,tipY-2,4,4);
+
+    drawOverlaps(c.mode);
+    for(let i=0;i<bodies.length;i++) drawBody(bodies[i], i, c.mode, th);
+    drawCuts(c.mode, th, CX, CY);
+
+    ctx.fillStyle='#333';
+    ctx.font='8px IBM Plex Mono,monospace';
+    ctx.fillText('CLICK BODY · HOVER', 10, H-10);
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+CONCEPTS.forEach(mount);
+</script>
+</body>
+</html>

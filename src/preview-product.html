@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>TOMO — Product (#3)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap');
+  :root{
+    --mono:"IBM Plex Mono",Consolas,monospace;
+    --mint:#3ff0a5; --cyan:#35d8e8; --orange:#ff7a2f; --yellow:#ffe14d;
+    --pink:#ff2d8a; --red:#ff3b30; --soft:#5a1818; --soft-hi:#8a3030;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#050505;color:#e8e8e8;font-family:var(--mono)}
+  .page{max-width:1100px;margin:0 auto;padding:32px 22px 80px}
+  h1{font-size:11px;letter-spacing:.42em;color:var(--red);margin-bottom:8px}
+  .sub{font-size:10px;letter-spacing:.05em;color:#6a6a6a;line-height:1.7;margin-bottom:20px;max-width:860px}
+  .box{
+    border:1px solid #2a1a1a;background:#0a0a0a;padding:14px 16px;margin-bottom:22px;
+    font-size:9px;letter-spacing:.04em;color:#8a8a8a;line-height:1.7;max-width:900px;
+  }
+  .box .k{color:var(--orange);letter-spacing:.14em;display:block;margin-bottom:8px}
+  .box b{color:#e8c8c8;font-weight:400}
+  .box ul{margin:6px 0 0 14px}
+  .box li{margin-bottom:5px}
+  .ok{color:var(--mint)} .miss{color:var(--orange)} .no{color:#555}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px 18px;margin-top:8px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .ct{font-size:10px;letter-spacing:.24em;color:var(--orange);margin-bottom:6px}
+  .cd{font-size:9px;color:#777;line-height:1.55;margin-bottom:10px;min-height:2.8em}
+  .card{
+    border:1px solid #2a1a1a;background:#000;padding:0;overflow:hidden;
+  }
+  .ph{background:#5a1818;color:#e8c8c8;font-size:8px;letter-spacing:.14em;padding:3px 10px;
+    display:flex;justify-content:space-between}
+  .pb{padding:12px 12px 14px}
+  .row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .tgl{
+    font-size:8px;letter-spacing:.12em;padding:5px 9px;border:1px solid #2a1a1a;color:#8a8a8a;
+  }
+  .tgl.on{border-color:var(--mint);color:var(--mint)}
+  .tgl.rec{border-color:var(--soft-hi);color:#e8c8c8;background:#2a1010}
+  .tgl.new{border-color:var(--cyan);color:var(--cyan);border-style:dashed}
+  .files{font-size:8px;letter-spacing:.06em;color:#666;line-height:1.7}
+  .files i{color:var(--mint);font-style:normal}
+  .files .dim{color:#444}
+  .tags{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+  .tags span{font-size:8px;letter-spacing:.12em;padding:3px 7px;border:1px solid #2a2a2a;color:#555}
+  .tags .g{border-color:rgba(63,240,165,.4);color:var(--mint)}
+  .tags .b{border-color:rgba(255,122,47,.4);color:var(--orange)}
+  .flow{
+    margin-top:28px;border:1px solid #2a1a1a;padding:14px 16px;background:#080808;
+    font-size:9px;color:#888;line-height:1.7;letter-spacing:.04em;
+  }
+  .flow .k{color:var(--cyan);letter-spacing:.14em;margin-bottom:8px;display:block}
+  .flow code{color:#c8c0d8}
+  .rec{margin-top:28px;padding-top:20px;border-top:1px solid #222}
+  .rec .ct{color:var(--mint)}
+  .rec .cd{min-height:0;max-width:860px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>PRODUCT · #3</h1>
+  <p class="sub">
+    Numer 3 to nie look — to <b>wyjście z playgroundu do tracku</b>.
+    Brief TOMO: WAV/stems, MIDI section events, video void (Reels/TikTok).
+    Dużo z tego już siedzi pod <code>REC / STEMS / VID</code> — domykamy lukę.
+  </p>
+
+  <div class="box">
+    <span class="k">CO JUŻ JEST W APPCE</span>
+    <ul>
+      <li><span class="ok">REC</span> — master → WAV (decode MediaRecorder)</li>
+      <li><span class="ok">STEMS</span> — master + 5× role bus (pulse/foundation/color/tension/air)</li>
+      <li><span class="ok">VID</span> — 9:16 void crop, burn-in telemetry, audio, auto FORM → stop</li>
+      <li><span class="ok">FORM</span> — INTRO→GROOVE→BREAK→PEAK jako łuk do exportu</li>
+      <li><span class="miss">MIDI</span> — brak pliku .mid (section / note events)</li>
+      <li><span class="miss">UX exportu</span> — 3 toggle’y, mało feedbacku co wyjdzie / kiedy</li>
+      <li><span class="no">MP3</span> — pomijalne w browserze bez ciężkiego encodera</li>
+    </ul>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="ct">A · NOW</div>
+      <div class="cd">Obecny pasek: REC / VID / STEMS. Działa, ale nie mówi jasno „co dostaniesz” i kiedy FORM kończy nagranie.</div>
+      <div class="card">
+        <div class="ph"><span>-TRANSPORT / SYS</span><span>01:00</span></div>
+        <div class="pb">
+          <div class="row">
+            <div class="tgl rec">REC</div>
+            <div class="tgl">VID</div>
+            <div class="tgl on">STEMS</div>
+            <div class="tgl">FORM</div>
+          </div>
+          <div class="files">
+            toast: RECORDING MASTER + 5 STEMS<br>
+            <span class="dim">po stop →</span> <i>tomo_master.wav</i> + 5 stems
+          </div>
+        </div>
+      </div>
+      <div class="tags"><span class="b">działa</span><span>mało czytelne</span></div>
+    </div>
+
+    <div>
+      <div class="ct">B · EXPORT HUD</div>
+      <div class="cd">Ten sam silnik, lepszy panel: checklist plików, ETA FORM, status REC/VID. Zero nowych formatów — tylko UX.</div>
+      <div class="card">
+        <div class="ph"><span>-EXPORT</span><span>FORM 2/6</span></div>
+        <div class="pb">
+          <div class="row">
+            <div class="tgl rec">REC</div>
+            <div class="tgl">VID</div>
+            <div class="tgl on">STEMS</div>
+          </div>
+          <div class="files">
+            WRITE QUEUE<br>
+            <i>■</i> tomo_master.wav<br>
+            <i>■</i> stem_pulse … stem_air<br>
+            <span class="dim">□ midi_section.mid (off)</span><br>
+            <span class="dim">ETA ~0:48 · PEAK</span>
+          </div>
+        </div>
+      </div>
+      <div class="tags"><span class="g">szybki win</span><span class="g">używa tego co jest</span></div>
+    </div>
+
+    <div>
+      <div class="ct">C · + MIDI</div>
+      <div class="cd">Po REC/FORM: <code>tomo_section.mid</code> — clock, note-on per body hit, marker per epoch. Do DAW / aranżu poza TOMO.</div>
+      <div class="card">
+        <div class="ph"><span>-EXPORT</span><span>MIDI ON</span></div>
+        <div class="pb">
+          <div class="row">
+            <div class="tgl on">REC</div>
+            <div class="tgl on">STEMS</div>
+            <div class="tgl new">MIDI</div>
+          </div>
+          <div class="files">
+            CH1 PULSE · CH2 FOUND · CH3 COLOR<br>
+            CH4 TENSION · CH5 AIR<br>
+            markers: INTRO / GROOVE / BREAK / PEAK<br>
+            <i>→ tomo_section.mid</i>
+          </div>
+        </div>
+      </div>
+      <div class="tags"><span class="g">brief gap</span><span class="b">więcej kodu</span></div>
+    </div>
+
+    <div>
+      <div class="ct">D · ONE-SHOT PUBLISH</div>
+      <div class="cd">Jeden przycisk: FORM + REC stems + VID + MIDI. Najbardziej „produkt”, ale ukrywa kontrolę — ryzykowne na start.</div>
+      <div class="card">
+        <div class="ph"><span>-PUBLISH</span><span>VOID PACK</span></div>
+        <div class="pb">
+          <div class="row">
+            <div class="tgl rec" style="flex:1;text-align:center;padding:10px">RENDER FULL FORM</div>
+          </div>
+          <div class="files">
+            auto: WAV · 5 stems · 9:16 vid · midi<br>
+            <span class="dim">stops at FORM end · downloads zip-like burst</span>
+          </div>
+        </div>
+      </div>
+      <div class="tags"><span class="b">później</span><span>mniej kontroli</span></div>
+    </div>
+  </div>
+
+  <div class="flow">
+    <span class="k">JAK TO DZIAŁA TERAZ (TECH)</span>
+    <code>REC</code> → MediaRecorder na <code>G.tap</code> (+ opcjonalnie <code>G.stemTap[role]</code>) → decode → <code>encodeWAV</code> → download.<br>
+    <code>VID</code> → offscreen 1080×1920, crop wokół bieguna, mix canvas+audio, auto <code>FORM</code>, stop na końcu łuku.<br>
+    Brakuje warstwy: zbieranie eventów nut/epoch w czasie REC → zapis SMF (MIDI file).
+  </div>
+
+  <div class="rec">
+    <div class="ct">REKOMENDACJA</div>
+    <p class="cd">
+      Najpierw <b style="color:var(--mint);font-weight:400">B · EXPORT HUD</b> (żeby istniejący REC/VID/STEMS było oczywiste),
+      potem <b style="color:var(--mint);font-weight:400">C · MIDI</b> jako brakujący kawałek briefu.
+      D na koniec, gdy B+C działają.
+    </p>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,20 @@
+[package]
+name = "tomo"
+version = "0.3.1"
+description = "TOMO — Shape the body. Cut the section. Hear the song."
+authors = ["TOMO"]
+edition = "2021"
+
+[lib]
+name = "tomo_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
