@@ -50,7 +50,9 @@ fn open_match_samples_dir(app: tauri::AppHandle, bank: String) -> Result<String,
         return Err("bad bank".into());
     }
     let root = find_samples_root().ok_or_else(|| "samples folder not found".to_string())?;
-    for b in ["LAB-01", "CLUB-01", "FILM-01", "HAZE-01", "STEEL-01"] {
+    for b in [
+        "COLD-01", "WARM-01", "NIGHT-01", "FILM-01", "CLUB-01", "HAZE-01", "STEEL-01", "BLOOM-01",
+    ] {
         let _ = fs::create_dir_all(root.join(b));
     }
     let dir = root.join(&bank);

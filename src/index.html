@@ -191,11 +191,16 @@
   #ml-meta .act span{border:1px solid var(--dimmer);padding:4px 8px;cursor:pointer}
   #ml-meta .act span:hover{border-color:var(--soft-red-hi);color:var(--frame)}
   #ml-slots{display:flex;flex-direction:column;gap:3px}
-  .ml-row{display:grid;grid-template-columns:78px 1fr auto;gap:8px;align-items:center;
+  .ml-group{
+    margin:8px 0 3px;font-size:7.5px;letter-spacing:.14em;color:#5a4040;
+    display:flex;justify-content:space-between;gap:8px}
+  .ml-group:first-child{margin-top:0}
+  .ml-group i{font-style:normal;color:#3a3030;letter-spacing:.08em}
+  .ml-row{display:grid;grid-template-columns:108px 1fr auto;gap:8px;align-items:center;
     border:1px solid var(--dimmer);padding:6px 8px;min-height:36px;transition:border-color .12s,background .12s}
   .ml-row.user{border-color:rgba(255,45,138,.55)}
   .ml-row.drag{border-color:var(--cyan);background:rgba(53,216,232,.08)}
-  .ml-row .nm{font-size:9.5px;letter-spacing:.1em}
+  .ml-row .nm{font-size:9px;letter-spacing:.08em}
   .ml-row .st{font-size:8px;letter-spacing:.08em;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ml-row.user .st{color:var(--pink)}
   .ml-row .ops{display:flex;gap:3px}
@@ -350,6 +355,9 @@
   .seg b:hover{border-color:#9a9a9a;color:#cfcfcf}
   .seg b.sel{background:var(--soft-red-sel);color:var(--soft-red-text);border-color:var(--soft-red-hi)}
   .seg.grain b{font-size:8.5px;letter-spacing:.04em}
+  .seg.voice{margin-top:6px;display:none;gap:2px}
+  .seg.voice.show{display:grid;grid-template-columns:repeat(3,1fr)}
+  .seg.voice b{flex:none;font-size:7.5px;letter-spacing:.08em;padding:5px 0}
   #dnabox{margin-top:10px;padding-top:8px;border-top:1px solid #1e1e1e;
     font-size:8px;letter-spacing:.1em;color:var(--mint);line-height:1.7}
   #dnabox span{color:#9ff5c8}
@@ -848,7 +856,7 @@
 <!-- left rail: head + substance stacked (no overlap) -->
 <div class="ui" id="left-rail">
   <div class="frame" id="head">
-      <div class="ph"><span>-Tomo</span><span id="app-ver">v0.1.1</span></div>
+      <div class="ph"><span>-Tomo</span><span id="app-ver">v0.1.2</span></div>
     <div class="pb">
       <div class="s">TAU CETI // SECTION DIVISION</div>
       <div id="tele">
@@ -872,7 +880,7 @@
       <div class="rule">
         <s>ANGLE</s> = WHEN<br>
         <s>RADIUS</s> = PITCH<br>
-        <s>SIZE</s> = MASS · drum<br>
+        <s>SIZE</s> = DRUM · hat→rim→snare→clap→tom→kick<br>
         <s>GRAIN</s> = HITS<br>
         <s>GATE</s> = LENGTH
       </div>
@@ -937,7 +945,8 @@
 
       <div class="insp-row">
         <div class="insp-meta"><span class="k">SIZE</span><span class="v" id="i-sizev">—</span></div>
-        <input type="range" id="i-size" min="20" max="380" step="1" aria-label="Size mass">
+        <input type="range" id="i-size" min="20" max="360" step="1" aria-label="Size mass">
+        <span class="seg voice" id="i-voice" aria-label="Drum voice"></span>
         <div class="insp-hint" id="i-sizeh">MASS · radius of the body</div>
       </div>
 
@@ -985,7 +994,7 @@
       </span>
     </div>
     <div id="ml-slots"></div>
-    <div id="ml-hint">LOAD / DROP WAV on a slot · ▶ preview · ✕ restore bake · FOLDER opens samples/{BANK}/ · dashed = still bake</div>
+    <div id="ml-hint">One sample per slot · MOOD switches this kit · LOAD / DROP WAV · ▶ preview · ✕ bake</div>
     <input type="file" id="ml-file" accept="audio/*,.wav,.mp3,.ogg,.flac">
   </div>
 </div>
@@ -1262,13 +1271,13 @@
    Rule set (the whole instrument, four lines):
      ANGLE            → WHEN in the bar the body speaks
      RADIUS FROM POLE → PITCH (near = low)  /  also = how often
-     SIZE             → MASS (which drum / how wide the arc)
+     SIZE             → DRUM on PULSE (hat→rim→snare→clap→tom→kick) · MASS elsewhere
      GRAIN            → HOW MANY hits inside its arc
    ═══════════════════════════════════════════════════════════════ */
 
 /* ── roles ─────────────────────────────────────────────────── */
 const ROLES = {
-  PULSE:      { key:'1', col:'#f2f2f2', wire:'#ffffff', label:'PULSE',      sub:'skin / transient', glyph:':' },
+  PULSE:      { key:'1', col:'#f2f2f2', wire:'#ffffff', label:'PULSE',      sub:'hat→kick by size', glyph:':' },
   FOUNDATION: { key:'2', col:'#ff7a2f', wire:'#ffa066', label:'FOUNDATION', sub:'sub / root',       glyph:'=' },
   COLOR:      { key:'3', col:'#3ff0a5', wire:'#8ff9d0', label:'COLOR',      sub:'chord body',       glyph:'#' },
   TENSION:    { key:'4', col:'#35d8e8', wire:'#8aecf5', label:'TENSION',    sub:'lead / pluck',     glyph:'+' },
@@ -1914,33 +1923,67 @@ function sendTo(node, role, verbAmt, dlyAmt){
 
 /* ═══════════════ MATCH — sample bank ═════════════════════════
    Bake → optional folder WAV → user drops (IndexedDB, highest priority).
-   Open KIT panel to load/preview/clear without touching disk folders. */
-const MATCH_SLOTS = ['kick_h','kick_s','snare_h','snare_s','hat_h','hat_s','bass','keys','pluck','pad'];
+   One sample per drum · MOOD switches the bank (kit) you filled.
+   PULSE drums ordered by SIZE (small → large). */
+const MATCH_SLOTS = ['hat','rim','snare','clap','tom','kick','bass','keys','pluck','pad'];
 const MATCH_SLOT_LABEL = {
-  kick_h:'KICK H', kick_s:'KICK S', snare_h:'SNARE H', snare_s:'SNARE S',
-  hat_h:'HAT H', hat_s:'HAT S', bass:'BASS', keys:'KEYS', pluck:'PLUCK', pad:'PAD'
+  hat:'HAT', rim:'RIM', snare:'SNARE', clap:'CLAP', tom:'TOM', kick:'KICK',
+  bass:'BASS', keys:'KEYS', pluck:'PLUCK', pad:'PAD'
 };
+const MATCH_SLOT_HINT = {
+  hat:'tiny mass', rim:'small stick / rim', snare:'mid backbeat',
+  clap:'mid-heavy clap', tom:'large tom', kick:'heaviest punch',
+  bass:'foundation', keys:'chords', pluck:'lead pluck', pad:'air pad'
+};
+const MATCH_SLOT_LEGACY = {
+  kick:['kick_h','kick_s'], snare:['snare_h','snare_s'], hat:['hat_h','hat_s']
+};
+/* SIZE (r*100, max 36) → drum. Six equal bands of 6. */
+const PULSE_SIZE_MAX = 36;
+const PULSE_R_MAX = PULSE_SIZE_MAX/100;
+const PULSE_VOICES = (()=>{
+  const defs=[
+    { id:'hat',   label:'HAT',   tip:'closed / light' },
+    { id:'rim',   label:'RIM',   tip:'rim / stick' },
+    { id:'snare', label:'SNARE', tip:'backbeat' },
+    { id:'clap',  label:'CLAP',  tip:'clap body' },
+    { id:'tom',   label:'TOM',   tip:'tom body' },
+    { id:'kick',  label:'KICK',  tip:'low punch' }
+  ];
+  const band=PULSE_SIZE_MAX/defs.length; // 6
+  return defs.map((d,i)=>{
+    const lo=i*band, hi=(i+1)*band, mid=(lo+hi)/2;
+    return {
+      id:d.id, label:d.label,
+      min:lo/100,
+      r:Math.min(PULSE_R_MAX, Math.max(0.02, mid/100)),
+      tip:'SIZE '+lo+'–'+hi+' · '+d.tip
+    };
+  });
+})();
+const PULSE_MIDI = { hat:42, rim:37, snare:38, clap:39, tom:45, kick:36 };
 const MATCH_PROFILES = {
-  // Lab: warm, round, slightly soft — default writing kit
-  'LAB-01':  { blurb:'warm round lab — default writing kit', kickH:0.92, kickS:0.28, snareH:0.88, snareS:0.32, hatH:0.90, hatS:0.28, bassG:0.58, keysB:0.52, pluckD:4.2, padLen:2.6, padA:0.72 },
-  // Club: harder transient, more bite, shorter pad
-  'CLUB-01': { blurb:'hard transient · club bite', kickH:1.0,  kickS:0.62, snareH:1.0,  snareS:0.60, hatH:1.0,  hatS:0.78, bassG:0.92, keysB:0.78, pluckD:6.5, padLen:1.45, padA:0.48 },
-  // Film: soft body, long air, low harshness
-  'FILM-01': { blurb:'soft body · long air', kickH:0.40, kickS:0.16, snareH:0.36, snareS:0.20, hatH:0.30, hatS:0.16, bassG:0.28, keysB:0.32, pluckD:2.9, padLen:3.6, padA:0.88 },
-  // Haze: murky phrygian fog — soft hits, long pad, low bite
-  'HAZE-01': { blurb:'murky fog · soft hits', kickH:0.52, kickS:0.20, snareH:0.44, snareS:0.24, hatH:0.38, hatS:0.20, bassG:0.36, keysB:0.38, pluckD:3.1, padLen:3.4, padA:0.94 },
-  // Steel: industrial edge — max transient, dry pad, growling bass
-  'STEEL-01':{ blurb:'industrial edge · dry pad', kickH:1.0,  kickS:0.88, snareH:1.0,  snareS:0.86, hatH:1.0,  hatS:0.96, bassG:1.0,  keysB:0.90, pluckD:7.4, padLen:1.05, padA:0.32 },
+  'COLD-01': { blurb:'cold snap · hard skin', hat:0.86, rim:0.88, snare:0.88, clap:0.90, tom:0.88, kick:0.90, bassG:0.72, keysB:0.62, pluckD:5.2, padLen:1.8, padA:0.42 },
+  'WARM-01': { blurb:'warm round writing kit', hat:0.72, rim:0.74, snare:0.74, clap:0.76, tom:0.76, kick:0.78, bassG:0.58, keysB:0.52, pluckD:4.2, padLen:2.6, padA:0.72 },
+  'NIGHT-01':{ blurb:'late pulse · shadowed air', hat:0.62, rim:0.64, snare:0.66, clap:0.68, tom:0.68, kick:0.70, bassG:0.55, keysB:0.58, pluckD:4.8, padLen:2.9, padA:0.78 },
+  'FILM-01': { blurb:'soft body · long air', hat:0.26, rim:0.28, snare:0.30, clap:0.32, tom:0.32, kick:0.34, bassG:0.28, keysB:0.32, pluckD:2.9, padLen:3.6, padA:0.88 },
+  'CLUB-01': { blurb:'hard transient · club bite', hat:0.94, rim:0.92, snare:0.90, clap:0.92, tom:0.90, kick:0.92, bassG:0.92, keysB:0.78, pluckD:6.5, padLen:1.45, padA:0.48 },
+  'HAZE-01': { blurb:'murky fog · soft hits', hat:0.34, rim:0.36, snare:0.38, clap:0.40, tom:0.40, kick:0.42, bassG:0.36, keysB:0.38, pluckD:3.1, padLen:3.4, padA:0.94 },
+  'STEEL-01':{ blurb:'industrial edge · dry pad', hat:0.98, rim:0.96, snare:0.94, clap:0.96, tom:0.94, kick:0.96, bassG:1.0,  keysB:0.90, pluckD:7.4, padLen:1.05, padA:0.32 },
+  'BLOOM-01':{ blurb:'open air · soft bloom', hat:0.40, rim:0.42, snare:0.44, clap:0.46, tom:0.46, kick:0.48, bassG:0.42, keysB:0.55, pluckD:3.6, padLen:3.2, padA:0.92 },
 };
-const MATCH_BANK_ORDER = ['LAB-01','CLUB-01','FILM-01','HAZE-01','STEEL-01'];
-const MATCH_MOOD_BANK = {
-  COLD:'CLUB-01', WARM:'LAB-01', NIGHT:'FILM-01', FILM:'FILM-01', CLUB:'CLUB-01',
-  HAZE:'HAZE-01', STEEL:'STEEL-01', BLOOM:'LAB-01'
-};
+// Keep bank list 1:1 with MOOD names (COLD…BLOOM)
+const MATCH_BANK_ORDER = MOODS.map(m=>m.name+'-01');
+const MATCH_MOOD_BANK = Object.fromEntries(MOODS.map(m=>[m.name, m.name+'-01']));
+const MATCH_BANK_ALIAS = { 'LAB-01':'WARM-01' };
+function matchNormBank(id){
+  if(MATCH_BANK_ALIAS[id]) id=MATCH_BANK_ALIAS[id];
+  return (id && MATCH_PROFILES[id]) ? id : 'WARM-01';
+}
 
 const MATCH = {
   on: false,
-  bank: 'LAB-01',
+  bank: 'WARM-01',
   root: { bass:36, keys:60, pluck:60, pad:48 },
   bufs: null,
   cache: Object.create(null),
@@ -1953,7 +1996,7 @@ const MATCH = {
 };
 
 function matchBankForMood(i){
-  const m=MOODS[i]; return (m && MATCH_MOOD_BANK[m.name]) || 'LAB-01';
+  const m=MOODS[i]; return (m && MATCH_MOOD_BANK[m.name]) || 'WARM-01';
 }
 function matchRate(midi, root){
   return Math.pow(2, (midi - root) / 12);
@@ -2082,16 +2125,17 @@ function matchCloneBufs(bufs){
 }
 function matchBakeBank(id, force){
   if(!AC) return;
-  if(!force && MATCH.cache[id]){ MATCH.bufs=MATCH.cache[id]; MATCH.bank=id; return; }
-  const P=MATCH_PROFILES[id]||MATCH_PROFILES['LAB-01'];
+  const cached=MATCH.cache[id];
+  if(!force && cached && MATCH_SLOTS.every(s=>cached[s])){ MATCH.bufs=cached; MATCH.bank=id; return; }
+  const P=MATCH_PROFILES[id]||MATCH_PROFILES['WARM-01'];
   const sr=AC.sampleRate;
   const baked = {
-    kick_h: bakeKick(sr, P.kickH),
-    kick_s: bakeKick(sr, P.kickS),
-    snare_h: bakeSnare(sr, P.snareH),
-    snare_s: bakeSnare(sr, P.snareS),
-    hat_h: bakeHat(sr, P.hatH),
-    hat_s: bakeHat(sr, P.hatS),
+    hat: bakeHat(sr, P.hat),
+    rim: bakeRim(sr, P.rim),
+    snare: bakeSnare(sr, P.snare),
+    clap: bakeClap(sr, P.clap),
+    tom: bakeTom(sr, P.tom),
+    kick: bakeKick(sr, P.kick),
     bass: bakeBass(sr, MATCH.root.bass, P.bassG),
     keys: bakeKeys(sr, MATCH.root.keys, P.keysB),
     pluck: bakePluck(sr, MATCH.root.pluck, P.pluckD),
@@ -2104,7 +2148,7 @@ function matchBakeBank(id, force){
   if(!MATCH.user[id]) MATCH.user[id]={};
 }
 function matchSetBank(id, quiet){
-  if(!id || !MATCH_PROFILES[id]) id='LAB-01';
+  id=matchNormBank(id);
   const prev=MATCH.bank;
   matchBakeBank(id);
   matchHydrateBank(id);
@@ -2122,31 +2166,54 @@ async function matchHydrateBank(id){
   let hits=0;
   try{
     if(!MATCH.user[id]) MATCH.user[id]={};
-    // 1) folder WAV (base layer)
-    await Promise.all(MATCH_SLOTS.map(async slot=>{
-      if(MATCH.user[id][slot]) return; // user drop wins; loaded below
+    async function tryFetchSlot(slot, name){
       try{
-        const res=await fetch('./samples/'+id+'/'+slot+'.wav', { cache:'force-cache' });
-        if(!res.ok) return;
+        const res=await fetch('./samples/'+id+'/'+name+'.wav', { cache:'force-cache' });
+        if(!res.ok) return false;
         const ab=await res.arrayBuffer();
         const buf=await AC.decodeAudioData(ab.slice(0));
         if(MATCH.cache[id]) MATCH.cache[id][slot]=buf;
         if(MATCH.bank===id && MATCH.bufs) MATCH.bufs[slot]=buf;
-        hits++;
-      }catch(_){}
-    }));
-    // 2) IndexedDB user drops (override)
+        return true;
+      }catch(_){ return false; }
+    }
+    async function tryDbSlot(bank, slot, names){
+      for(const name of names){
+        try{
+          const row=await matchDbGet(bank, name);
+          if(!row || !row.data) continue;
+          const copy=row.data.slice(0);
+          if(name!==slot || bank!==id) await matchDbPut(id, slot, copy, row.name||slot+'.wav');
+          const buf=await AC.decodeAudioData(copy.slice(0));
+          if(MATCH.cache[id]) MATCH.cache[id][slot]=buf;
+          if(MATCH.bank===id && MATCH.bufs) MATCH.bufs[slot]=buf;
+          MATCH.user[id][slot]=row.name||slot+'.wav';
+          return true;
+        }catch(_){}
+      }
+      return false;
+    }
+    // 1) folder WAV (base layer) — also accept legacy kick_h / kick_s names
     await Promise.all(MATCH_SLOTS.map(async slot=>{
-      try{
-        const row=await matchDbGet(id, slot);
-        if(!row || !row.data) return;
-        const buf=await AC.decodeAudioData(row.data.slice(0));
-        if(MATCH.cache[id]) MATCH.cache[id][slot]=buf;
-        if(MATCH.bank===id && MATCH.bufs) MATCH.bufs[slot]=buf;
-        MATCH.user[id][slot]=row.name||slot+'.wav';
-        hits++;
-      }catch(_){}
+      if(MATCH.user[id][slot]) return;
+      const names=[slot].concat(MATCH_SLOT_LEGACY[slot]||[]);
+      for(const name of names){
+        if(await tryFetchSlot(slot, name)){ hits++; break; }
+      }
     }));
+    // 2) IndexedDB user drops (override) + migrate legacy hard/soft → single slot
+    await Promise.all(MATCH_SLOTS.map(async slot=>{
+      const names=[slot].concat(MATCH_SLOT_LEGACY[slot]||[]);
+      if(await tryDbSlot(id, slot, names)) hits++;
+    }));
+    // 3) Legacy LAB-01 → WARM-01
+    if(id==='WARM-01'){
+      await Promise.all(MATCH_SLOTS.map(async slot=>{
+        if(MATCH.user[id][slot]) return;
+        const names=[slot].concat(MATCH_SLOT_LEGACY[slot]||[]);
+        if(await tryDbSlot('LAB-01', slot, names)) hits++;
+      }));
+    }
   }finally{
     MATCH.loading=false;
   }
@@ -2239,11 +2306,16 @@ function matchLibToggle(){ MATCH.libOpen? matchLibClose() : matchLibOpen(); }
 function matchLibRender(){
   const banks=$('ml-banks'), slots=$('ml-slots'), st=$('ml-status');
   if(!banks||!slots) return;
-  banks.innerHTML=Object.keys(MATCH_PROFILES).map(id=>
-    `<b data-b="${id}" class="${id===MATCH.bank?'sel':''}" title="${(MATCH_PROFILES[id].blurb||'')}">${id}</b>`
-  ).join('');
+  banks.innerHTML=MATCH_BANK_ORDER.map(id=>{
+    const label=id.replace(/-01$/,'');
+    return `<b data-b="${id}" class="${id===MATCH.bank?'sel':''}" title="${(MATCH_PROFILES[id]&&MATCH_PROFILES[id].blurb)||''}">${label}</b>`;
+  }).join('');
   const blurb=$('ml-bankblurb');
-  if(blurb) blurb.textContent=(MATCH_PROFILES[MATCH.bank]&&MATCH_PROFILES[MATCH.bank].blurb)||'';
+  if(blurb){
+    const mood=(MOODS[S.mood]&&MOODS[S.mood].name)||'?';
+    const kit=(MATCH_PROFILES[MATCH.bank]&&MATCH_PROFILES[MATCH.bank].blurb)||'';
+    blurb.textContent=kit+' · MOOD '+mood+' loads this kit';
+  }
   const u=MATCH.user[MATCH.bank]||{};
   const n=Object.keys(u).length;
   if(st) st.textContent = MATCH.on
@@ -2256,18 +2328,25 @@ function matchLibRender(){
   const engOn=$('ml-eng-on'), engOff=$('ml-eng-off');
   if(engOn) engOn.classList.toggle('on', MATCH.on);
   if(engOff) engOff.classList.toggle('on', !MATCH.on);
-  slots.innerHTML=MATCH_SLOTS.map(slot=>{
+  slots.innerHTML=[
+    '<div class="ml-group">DRUMS <i>by SIZE · small → large</i></div>',
+    ...MATCH_SLOTS.slice(0,6).map(slotRow),
+    '<div class="ml-group">TONES <i>pitched layers</i></div>',
+    ...MATCH_SLOTS.slice(6).map(slotRow)
+  ].join('');
+  function slotRow(slot){
     const name=u[slot];
-    return `<div class="ml-row${name?' user':' bake'}" data-slot="${slot}">
+    const hint=MATCH_SLOT_HINT[slot]||'';
+    return `<div class="ml-row${name?' user':' bake'}" data-slot="${slot}" title="${hint}">
       <span class="nm">${MATCH_SLOT_LABEL[slot]||slot}</span>
-      <span class="st">${name? name : 'bake · drop WAV'}</span>
+      <span class="st">${name? name : (hint+' · drop WAV')}</span>
       <span class="ops">
         <i data-act="load">LOAD</i>
         <i data-act="play">▶</i>
         <i data-act="clear"${name?'':' style="opacity:.35"'}>✕</i>
       </span>
     </div>`;
-  }).join('');
+  }
 }
 
 function matchLibBind(){
@@ -2330,7 +2409,7 @@ function matchLibBind(){
 }
 
 async function openMatchSamplesFolder(){
-  const bank=MATCH.bank||'LAB-01';
+  const bank=MATCH.bank||'WARM-01';
   try{
     const api=window.__TAURI__;
     if(api && api.core && typeof api.core.invoke==='function'){
@@ -2386,6 +2465,46 @@ function bakeHat(sr, hard){
     const bright=nz - prev*0.35;
     prev=bright;
     d[i]=bright*Math.exp(-t*(28+hard*35))*(0.55+hard*0.2);
+  }
+  return buf;
+}
+function bakeRim(sr, hard){
+  const dur=0.12, n=Math.floor(sr*dur), buf=AC.createBuffer(1,n,sr), d=buf.getChannelData(0);
+  let ph=0;
+  for(let i=0;i<n;i++){
+    const t=i/sr;
+    const f=880+hard*220;
+    ph += 2*Math.PI*f/sr;
+    const click=Math.sin(ph)*Math.exp(-t*(38+hard*20))*(0.55+hard*0.2);
+    const nz=(Math.random()*2-1)*Math.exp(-t*(55+hard*30))*(0.35+hard*0.2);
+    d[i]=(click+nz)*0.9;
+  }
+  return buf;
+}
+function bakeClap(sr, hard){
+  const dur=0.32, n=Math.floor(sr*dur), buf=AC.createBuffer(1,n,sr), d=buf.getChannelData(0);
+  const bursts=[0, 0.012, 0.024, 0.045];
+  for(let i=0;i<n;i++){
+    const t=i/sr;
+    let s=0;
+    for(let bi=0;bi<bursts.length;bi++){
+      const u=t-bursts[bi]; if(u<0) continue;
+      s+=(Math.random()*2-1)*Math.exp(-u*(14+hard*10))*(0.45+hard*0.25);
+    }
+    d[i]=s*0.95;
+  }
+  return buf;
+}
+function bakeTom(sr, hard){
+  const dur=0.38, n=Math.floor(sr*dur), buf=AC.createBuffer(1,n,sr), d=buf.getChannelData(0);
+  let ph=0;
+  for(let i=0;i<n;i++){
+    const t=i/sr;
+    const f=Math.max(70, (210-hard*40)*Math.pow(0.42, t/(0.09+hard*0.03)));
+    ph += 2*Math.PI*f/sr;
+    const body=Math.sin(ph)*Math.exp(-t*(7+hard*2.5));
+    const nz=(Math.random()*2-1)*Math.exp(-t*(18+hard*8))*(0.12+hard*0.08);
+    d[i]=(body+nz)*0.9;
   }
   return buf;
 }
@@ -2496,8 +2615,13 @@ function matchPlay(name, t, opts){
 }
 
 function matchDrum(kind, t, hard, amp){
-  const tag = hard>0.62 ? '_h' : '_s';
-  const ok = matchPlay(kind+tag, t, { amp, role:'PULSE', verb: kind==='kick'?0.04: kind==='snare'?0.18:0.1, atk:0.001 });
+  const verb = kind==='kick'?0.04: kind==='snare'||kind==='clap'?0.18: kind==='tom'?0.1:0.08;
+  const ok = matchPlay(kind, t, {
+    amp: amp*(0.82+hard*0.22),
+    role:'PULSE',
+    verb,
+    atk:0.001
+  });
   if(ok && kind==='kick') matchDuck(t, hard);
   return ok;
 }
@@ -2576,6 +2700,60 @@ function vHat(t, hard, amp, len){
   hp.type='highpass'; hp.frequency.value=7000+hard*1200;
   envGain(g, t, 0.28*peak, 0.002, hatDur);
   n.connect(hp); hp.connect(g); sendTo(g,'PULSE',0.08,0); n.start(t);
+}
+function vRim(t, hard, amp){
+  const peak=Math.min(0.5, amp*0.6);
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type='square';
+  o.frequency.setValueAtTime(920+hard*180, t);
+  o.frequency.exponentialRampToValueAtTime(420, t+0.03);
+  envGain(g, t, 0.22*peak, 0.001, 0.045);
+  o.connect(g); sendTo(g,'PULSE',0.05,0);
+  o.start(t); o.stop(t+0.08);
+  const n=noise(0.04), hp=AC.createBiquadFilter(), ng=AC.createGain();
+  hp.type='highpass'; hp.frequency.value=3500;
+  envGain(ng, t, 0.2*peak, 0.001, 0.03);
+  n.connect(hp); hp.connect(ng); sendTo(ng,'PULSE',0.04,0); n.start(t);
+}
+function vClap(t, hard, amp){
+  const peak=Math.min(0.65, amp*0.7);
+  const n=noise(0.28), bp=AC.createBiquadFilter(), g=AC.createGain();
+  bp.type='bandpass'; bp.frequency.value=1200+hard*400; bp.Q.value=0.55;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.48*peak, t+0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.002+(0.16-hard*0.03));
+  // staggered bursts
+  [0, 0.014, 0.028].forEach((off,i)=>{
+    const nn=noise(0.08), gg=AC.createGain(), bb=AC.createBiquadFilter();
+    bb.type='bandpass'; bb.frequency.value=1400; bb.Q.value=0.6;
+    envGain(gg, t+off, (0.28-i*0.05)*peak, 0.001, 0.05);
+    nn.connect(bb); bb.connect(gg); sendTo(gg,'PULSE',0.12,0); nn.start(t+off);
+  });
+  n.connect(bp); bp.connect(g); sendTo(g,'PULSE',0.14,0); n.start(t);
+}
+function vTom(t, hard, amp){
+  const peak=Math.min(0.75, amp*0.8);
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type='sine';
+  o.frequency.setValueAtTime(210-hard*30, t);
+  o.frequency.exponentialRampToValueAtTime(85, t+0.12);
+  envGain(g, t, peak*0.85, 0.004, 0.22);
+  o.connect(g); sendTo(g,'PULSE',0.08,0);
+  o.start(t); o.stop(t+0.32);
+  const n=noise(0.06), bp=AC.createBiquadFilter(), ng=AC.createGain();
+  bp.type='bandpass'; bp.frequency.value=600; bp.Q.value=0.8;
+  envGain(ng, t, 0.18*peak, 0.002, 0.05);
+  n.connect(bp); bp.connect(ng); sendTo(ng,'PULSE',0.05,0); n.start(t);
+}
+function playPulseVoice(v, t, hard, amp, gate){
+  if(v==='kick'){ if(!matchDrum('kick',t,hard,amp)) vKick(t,hard,amp); return; }
+  if(v==='tom'){ if(!matchDrum('tom',t,hard,amp*0.92)) vTom(t,hard,amp*0.92); return; }
+  if(v==='clap'){ if(!matchDrum('clap',t,hard,amp*0.9)) vClap(t,hard,amp*0.9); return; }
+  if(v==='snare'){ if(!matchDrum('snare',t,hard,amp*0.9)) vSnare(t,hard,amp*0.9); return; }
+  if(v==='rim'){ if(!matchDrum('rim',t,hard,amp*0.85)) vRim(t,hard,amp*0.85); return; }
+  const hatLen=Math.max(0.028, (gate||0.08)*0.7);
+  if(!matchPlay('hat', t, { amp:amp*0.8*(0.82+hard*0.22), role:'PULSE', verb:0.1, atk:0.001, dur:hatLen, rel:0.04 }))
+    vHat(t,hard,amp*0.8,hatLen);
 }
 let noisePool=null;
 function noise(dur){
@@ -2719,7 +2897,13 @@ function setSidechain(on, quiet){
 
 const GRAIN_HITS = [2,4,8,12,16];   // target hits per bar (visual + musical density)
 const MAX_HIT_DIV = 2;              // soft ratchet when lattice collapses placements
-const norm = a => { while(a<-Math.PI)a+=2*Math.PI; while(a>Math.PI)a-=2*Math.PI; return a; };
+const norm = a => {
+  if(!Number.isFinite(a)) return 0;
+  a = a % (Math.PI*2);
+  if(a<=-Math.PI) a+=Math.PI*2;
+  if(a>Math.PI) a-=Math.PI*2;
+  return a;
+};
 
 function scale(){ return SCALES[MOODS[S.mood].scale]; }
 
@@ -2769,13 +2953,33 @@ function spinStepOff(b, bar){
 }
 
 /* Lattice Snap — the guardrail that means a body can never accidentally go mute.
-   A hit that lands on an idle cell is pulled to the nearest active one (earlier wins,
-   because pulling back reads as intent). Excess grain density is kept via ratchet (div). */
-function snapToLattice(step){
+   A hit that lands on an idle cell is pulled to the nearest active one.
+   For accent bodies, only snap to a lattice step where the meridian still CUTS
+   the body — otherwise sound fires while the sweep is still far away. */
+function stepTheta(step){
+  return -Math.PI/2 + 2*Math.PI*(((step%STEPS)+STEPS)%STEPS)/STEPS;
+}
+function snapToLattice(step, b){
+  const inCut = (s)=>{
+    if(!S.lattice[s]) return false;
+    if(!b || containsPole(b)) return true;
+    return !!cut(b, stepTheta(s));
+  };
+  if(inCut(step)) return step;
+  let best=-1, bd=1e9;
+  for(let s=0;s<STEPS;s++){
+    if(!inCut(s)) continue;
+    const d=Math.min((s-step+STEPS)%STEPS, (step-s+STEPS)%STEPS);
+    if(d<bd){ bd=d; best=s; }
+  }
+  if(best>=0) return best;
+  // No lattice cell intersects this body — keep geometric time (still audible when cut)
+  if(b && !containsPole(b)) return ((step%STEPS)+STEPS)%STEPS;
+  // Cyclic / no body: classic nearest lattice (earlier wins on ties)
   if(S.lattice[step]) return step;
   for(let d=1;d<=STEPS;d++){
     const a=((step-d)%STEPS+STEPS)%STEPS; if(S.lattice[a]) return a;
-    const b=(step+d)%STEPS;               if(S.lattice[b]) return b;
+    const c=(step+d)%STEPS;               if(S.lattice[c]) return c;
   }
   return -1;
 }
@@ -2804,15 +3008,16 @@ function bodyHits(b, bar){
   const nearestSlot=(raw)=>{
     const r=((raw%STEPS)+STEPS)%STEPS;
     if(!useLattice) return Math.round(r)%STEPS;
-    let fs=snapToLattice(Math.round(r)%STEPS);
+    let fs=snapToLattice(Math.round(r)%STEPS, b);
     if(fs>=0) return fs;
     let best=-1, bd=1e9;
     for(let s=0;s<STEPS;s++){
       if(!S.lattice[s]) continue;
+      if(!containsPole(b) && !cut(b, stepTheta(s))) continue;
       const d=Math.min((s-r+STEPS)%STEPS, (r-s+STEPS)%STEPS);
       if(d<bd){ bd=d; best=s; }
     }
-    return best;
+    return best>=0 ? best : Math.round(r)%STEPS;
   };
 
   const putRaw=(raw)=>{
@@ -2868,9 +3073,15 @@ function bodyHits(b, bar){
 }
 
 function pulseVoice(b){                 // size = mass = which drum
-  if(b.r>=0.13) return 'kick';
-  if(b.r>=0.085) return 'snare';
-  return 'hat';
+  const r=+b.r||0;
+  for(let i=PULSE_VOICES.length-1;i>=0;i--){
+    if(r>=(PULSE_VOICES[i].min||0)) return PULSE_VOICES[i].id;
+  }
+  return PULSE_VOICES[0].id;
+}
+function pulseVoiceLabel(id){
+  const v=PULSE_VOICES.find(x=>x.id===id);
+  return v? v.label : String(id||'').toUpperCase();
 }
 
 /* ═══════════════ TRANSPORT ═══════════════════════════════════ */
@@ -2959,9 +3170,16 @@ function fireBody(b, hit, bar, t, ampScale, doFlash){
   const M=MOODS[S.mood], EX=epochMix(), sd=stepDur();
   const hard=Math.min(1.25, M.hard*EX.hard);
   const gateBase=sd*M.gate*EX.gate;
-  const a=bodyAngle(b,bar);
-  const th=-Math.PI/2 + 2*Math.PI*hit.raw/STEPS;
-  const c=cut(b, th) || cut(b, a);
+  // Fire only when the meridian at this lattice step actually cuts the body.
+  // Tiny bodies may only intersect between steps — allow geometric raw if still within ~1 step.
+  const th=stepTheta(hit.step);
+  let c=cut(b, th);
+  if(!c){
+    const raw=((hit.raw%STEPS)+STEPS)%STEPS;
+    const dist=Math.min((hit.step-raw+STEPS)%STEPS, (raw-hit.step+STEPS)%STEPS);
+    if(dist<=1.01) c=cut(b, -Math.PI/2 + 2*Math.PI*raw/STEPS);
+  }
+  if(!c && containsPole(b)) c=cut(b, bodyAngle(b,bar));
   if(!c) return;
 
   const gate=gateBase*Math.max(0.05, b.gate||1);
@@ -2988,7 +3206,7 @@ function fireBody(b, hit, bar, t, ampScale, doFlash){
       const tRel=Math.max(0, tt-midiT0);
       if(b.role==='PULSE'){
         const v=pulseVoice(b);
-        midiNotes.push({ t:tRel, note: v==='kick'?36 : v==='snare'?38 : 42, ch:9, dur:noteDur, vel });
+        midiNotes.push({ t:tRel, note: PULSE_MIDI[v]||42, ch:9, dur:noteDur, vel });
       }else if(b.role==='COLOR'){
         for(const d of colorChordDegs(b,bar,hit,Math.min(k,(hit.div|1)-1),pitchR)){
           midiNotes.push({ t:tRel, note:degToMidi(d,'COLOR'), ch:ROLE_MIDI_CH.COLOR, dur:noteDur*1.25, vel:Math.max(30,vel-8) });
@@ -3000,13 +3218,8 @@ function fireBody(b, hit, bar, t, ampScale, doFlash){
 
     if(b.role==='PULSE'){
       const v=pulseVoice(b);
-      if(v==='kick'){ if(!matchDrum('kick',tt,hard,amp)) vKick(tt,hard,amp); }
-      else if(v==='snare'){ if(!matchDrum('snare',tt,hard,amp*0.9)) vSnare(tt,hard,amp*0.9); }
-      else {
-        const hatLen=Math.max(0.028, gate*0.7/divPlay);
-        if(!matchPlay('hat'+(hard>0.62?'_h':'_s'), tt, { amp:amp*0.8, role:'PULSE', verb:0.1, atk:0.001, dur:hatLen, rel:0.04 }))
-          vHat(tt,hard,amp*0.8,hatLen);
-      }
+      const hatGate=gate/divPlay;
+      playPulseVoice(v, tt, hard, amp, hatGate);
     }
     if(b.role==='FOUNDATION'){
       const lenB=Math.max(0.04, gate*1.35/divPlay);
@@ -3040,7 +3253,7 @@ function fireBody(b, hit, bar, t, ampScale, doFlash){
       if(!matchPad(tt,notes,plen,amp*M.air*0.9))
         vPad(tt,notes,plen,amp*M.air*0.9);
     }
-    if(k===0 && doFlash) pushFlash(b,c,th, b.role==='PULSE'? null : midi);
+    if(k===0 && doFlash) pushFlash(b,c,th, b.role==='PULSE'? null : midi, tt);
   }
 }
 
@@ -3077,14 +3290,14 @@ function burstBudget(){
   if(alive>8) m *= 0.72;
   return Math.max(0.38, Math.min(1, m));
 }
-function pushFlash(b,c,th,midi){
-  flashes.push({ id:b.id, at:AC.currentTime, r:c.pitchR, near:c.near, theta:th,
+function pushFlash(b,c,th,midi, atTime){
+  const at = atTime!=null ? atTime : (AC?AC.currentTime:0);
+  flashes.push({ id:b.id, at, r:c.pitchR, near:c.near, theta:th,
                  note: midi!=null? NOTE_NAMES[midi%12]+(Math.floor(midi/12)-1) : null,
                  role:b.role });
   if(flashes.length>90) flashes.shift();
 
   const [x,y]=toPx(b);
-  const at=AC.currentTime;
   const col=b._hy ? '#ff2d8a' : ROLES[b.role].col;
   const wire=b._hy ? '#ff2d8a' : ROLES[b.role].wire;
   const Rpx=b.r*MR;
@@ -3235,22 +3448,24 @@ function drawSparks(now){
   let w=0;
   for(let i=0;i<sparks.length;i++){
     const s=sparks[i];
-    const age=(now-s.at)/s.life;
+    const age=(now-s.at)/Math.max(1e-6, s.life||0.2);
+    // Keep scheduled-ahead sparks, but don't draw until their time (negative arc radius freezes the frame loop)
+    if(age<0){ sparks[w++]=s; continue; }
     if(age>=1) continue;
     sparks[w++]=s;
     const al=(1-age)*(s.fade!=null?s.fade:1);
     const t=age;
 
     if(s.k==='shock'){
-      const r=s.r0 + (s.r1-s.r0)*t;
+      const r=Math.max(0.01, s.r0 + (s.r1-s.r0)*t);
       ctx.globalAlpha=al*0.45;
       ctx.strokeStyle=s.col;
       ctx.lineWidth=s.lw||1;
       ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI*2); ctx.stroke();
     }else if(s.k==='thump'){
       // Flat bass ring — expands wide, stays short (speaker cone)
-      const rx=s.rx0 + (s.rx1-s.rx0)*t;
-      const ry=s.ry0 + (s.ry1-s.ry0)*t;
+      const rx=Math.max(0.01, s.rx0 + (s.rx1-s.rx0)*t);
+      const ry=Math.max(0.01, s.ry0 + (s.ry1-s.ry0)*t);
       ctx.globalAlpha=al*0.85;
       ctx.strokeStyle=s.col;
       ctx.lineWidth=s.lw||1.5;
@@ -3929,7 +4144,7 @@ function applyMood(i, opts){
   if(!opts.silent){
     syncUI();
     syncTempoUI();
-    toast('MOOD '+M.name+(MATCH.on?' · MATCH '+MATCH.bank:''));
+    toast('MOOD '+M.name+(MATCH.on?' · kit '+MATCH.bank.replace(/-01$/,''):''));
   }else{
     try{ syncTempoUI(); }catch(_){}
   }
@@ -4050,9 +4265,16 @@ function flashHotFor(id, now){
 }
 
 function draw(ts){
+  try{
+    drawFrame(ts);
+  }catch(err){
+    try{ console.warn('draw', err); }catch(_){}
+  }
+  requestAnimationFrame(draw);
+}
+function drawFrame(ts){
   // Skip full void paint while asleep — wake owns the screen
   if(document.body.classList.contains('asleep')){
-    requestAnimationFrame(draw);
     return;
   }
   // Auto-heal collapsed canvas (GPU clamp / failed DPR boost)
@@ -4096,7 +4318,6 @@ function draw(ts){
 
   driftStep(ts);
   if(vidRecording) paintVidFrame();
-  requestAnimationFrame(draw);
 }
 
 let fieldTmp=null, fieldCheckCv=null, fieldCheckW=0, fieldCheckH=0;
@@ -4282,7 +4503,7 @@ function drawBody(b, bar, now, idx){
   ctx.textAlign='left'; ctx.textBaseline='alphabetic';
   const hov=hoverId===b.id;
   ctx.fillStyle=hexA(cfg.col, sel?0.95: hov?0.75:0.4);
-  const tag = b.role==='PULSE' ? pulseVoice(b).toUpperCase() : b.role;
+  const tag = b.role==='PULSE' ? pulseVoiceLabel(pulseVoice(b)) : b.role;
   // stack labels when bodies share the pole OR sit near each other vertically
   let stack = containsPole(b) ? (idx||0)*11 : 0;
   if(!stack && idx>0){
@@ -4432,7 +4653,7 @@ function driftStep(ts){
 }
 
 /* ═══════════════ UI ══════════════════════════════════════════ */
-const APP_VERSION='0.2.0';
+const APP_VERSION='0.1.2';
 const $=id=>document.getElementById(id);
 if($('app-ver')) $('app-ver').textContent='v'+APP_VERSION;
 
@@ -4475,13 +4696,27 @@ $('i-grain').onclick=e=>{
   histPush();
   b.grain=+t.dataset.g; b._hk=null; restipple(b); markAutosaveDirty(); syncInspector();
 };
+$('i-voice').innerHTML=PULSE_VOICES.map(v=>
+  `<b data-v="${v.id}" title="${v.tip}">${v.label}</b>`).join('');
+$('i-voice').onclick=e=>{
+  const t=e.target.closest('b'); if(!t) return;
+  const b=selBody(); if(!b || b.role!=='PULSE') return;
+  const voice=PULSE_VOICES.find(v=>v.id===t.dataset.v); if(!voice) return;
+  histPush();
+  b.r=voice.r; b._hk=null; restipple(b);
+  $('i-size').value=Math.round(b.r*1000);
+  setRangeFill($('i-size'));
+  paintInspSize(b);
+  markAutosaveDirty(); syncUI();
+  toast('PULSE · '+voice.label);
+};
 function setRangeFill(el){
   if(!el) return;
   const min=+el.min||0, max=+el.max||1, v=+el.value;
   el.style.setProperty('--pct', ((v-min)/Math.max(1e-6,max-min)*100)+'%');
 }
 function inspTouchSize(b){
-  b.r=Math.max(0.02, Math.min(0.38, +$('i-size').value/1000));
+  b.r=Math.max(0.02, Math.min(PULSE_R_MAX, +$('i-size').value/1000));
   b._hk=null;
   restipple(b);
   setRangeFill($('i-size'));
@@ -4491,13 +4726,21 @@ function paintInspSize(b){
   const mass=(b.r*100);
   $('i-sizev').textContent=mass.toFixed(1);
   const h=$('i-sizeh');
+  const voiceEl=$('i-voice');
   if(b.role==='PULSE'){
-    const v=pulseVoice(b).toUpperCase();
-    h.innerHTML='MASS · <b>'+v+'</b> · kick≥13 · snare≥8.5 · hat';
-  }else if(b.role==='FOUNDATION'){
-    h.innerHTML='MASS · <b>bass weight</b> · larger = wider cut';
+    const v=pulseVoice(b);
+    if(voiceEl){
+      voiceEl.classList.add('show');
+      [...voiceEl.children].forEach(t=>t.classList.toggle('sel', t.dataset.v===v));
+    }
+    h.innerHTML='SIZE 0–'+PULSE_SIZE_MAX+' · <b>'+pulseVoiceLabel(v)+'</b> · 6 equal bands · larger = heavier';
   }else{
-    h.innerHTML='MASS · radius · larger arc / louder presence';
+    if(voiceEl) voiceEl.classList.remove('show');
+    if(b.role==='FOUNDATION'){
+      h.innerHTML='MASS · <b>bass weight</b> · larger = wider cut';
+    }else{
+      h.innerHTML='MASS · radius · larger arc / louder presence';
+    }
   }
 }
 function paintInspGrain(b){
@@ -4521,7 +4764,7 @@ function paintInspGate(b){
     const ms=Math.round(stepDur()*M.gate*EX.gate*g*1000);
     const feel=g<0.55?'SHORT': g>1.6?'LONG':'MED';
     if(b.role==='PULSE')
-      h.innerHTML='NOTE LENGTH · <b>'+feel+'</b> · ~'+ms+'ms · hats follow gate · kick/snare stay punchy';
+      h.innerHTML='NOTE LENGTH · <b>'+feel+'</b> · ~'+ms+'ms · hat/rim follow gate · heavier drums stay punchy';
     else if(b.role==='AIR')
       h.innerHTML='NOTE LENGTH · <b>'+feel+'</b> · ~'+ms+'ms · pad sustain (try extremes)';
     else
@@ -4871,7 +5114,7 @@ cv.addEventListener('wheel',e=>{
   if(e.shiftKey){
     b.grain=Math.max(1,Math.min(5,b.grain+dir));
   }else{
-    b.r=Math.max(0.02,Math.min(0.38, b.r + dir*0.008));
+    b.r=Math.max(0.02,Math.min(PULSE_R_MAX, b.r + dir*0.008));
   }
   b._hk=null; restipple(b); S.sel=b.id; markAutosaveDirty(); syncUI();
 },{passive:false});
@@ -5198,7 +5441,7 @@ function syncInspector(){
   const b=selBody(), el=$('insp');
   if(!b){ el.classList.remove('show'); return; }
   el.classList.add('show');
-  const roleLabel=b.role==='PULSE'? pulseVoice(b).toUpperCase(): b.role;
+  const roleLabel=b.role==='PULSE'? pulseVoiceLabel(pulseVoice(b)): b.role;
   $('i-title').textContent = '-'+(ROLES[b.role].glyph||'#')+' '+roleLabel+' '+String(b.id).padStart(2,'0');
   [...$('i-roles').children].forEach(d=>d.classList.toggle('sel', d.dataset.role===b.role));
 
@@ -5215,7 +5458,7 @@ function syncInspector(){
   $('i-spinv').textContent=spinIdx>=0?SPINS[spinIdx].n:'0';
 
   if(b.role==='PULSE'){
-    $('i-note').textContent = pulseVoice(b).toUpperCase()+' · '+(containsPole(b)?'CYCLIC':'ACCENT');
+    $('i-note').textContent = pulseVoiceLabel(pulseVoice(b))+' · '+(containsPole(b)?'CYCLIC':'ACCENT');
   }else{
     const hits=bodyHits(b,0);
     const notes=[];
@@ -5418,7 +5661,7 @@ function dnaPayload(){
     })),
     sidechain:S.sidechain!==false,
     wet:Object.assign({}, S.wet||{}),
-    match:{ on:!!MATCH.on, bank:MATCH.bank||'LAB-01' },
+    match:{ on:!!MATCH.on, bank:MATCH.bank||'WARM-01' },
   };
 }
 
@@ -5527,7 +5770,7 @@ function applySectionData(data, opts){
   }
 
   if(data.match && typeof data.match==='object'){
-    const bank=data.match.bank||MATCH.bank||'LAB-01';
+    const bank=matchNormBank(data.match.bank||MATCH.bank||'WARM-01');
     try{ matchSetBank(bank, true); }catch(_){}
     setMatchEngine(!!data.match.on, true);
   }
@@ -8088,7 +8331,7 @@ function guideSectionHtml(id){
         ['SCROLL','Resize mass. <kbd>SHIFT+SCROLL</kbd> changes grain (hits in the arc).'],
         ['RIGHT-CLICK','Cycle role on a body.'],
         ['DELETE','Void the selected body.'],
-        ['INSPECTOR','SIZE / GRAIN / SPIN / GATE · GATE = note length (short↔long). Best on COLOR · AIR · bass.'],
+        ['INSPECTOR','SIZE picks HAT→RIM→SNARE→CLAP→TOM→KICK on PULSE · GRAIN / SPIN / GATE.'],
         ['-Melody','Per-epoch PROG chords + MOTIF lead + BASS offsets. Gold = live step. ↺ resets.'],
         ['TEMPO','BPM 60–160 + swing % on transport — independent of mood after tweak; saved in DNA.'],
         ['CONNECT','Overlap non-pulse bodies → pink halo + CONNECT · click or <kbd>Enter</kbd> to splice.'],
@@ -8125,10 +8368,10 @@ function guideSectionHtml(id){
       ${guideItems([
         ['SYNTH','Built-in oscillators (default at wake).'],
         ['MATCH','Sample bank engine — toggle SYNTH/MATCH on the LIVE row.'],
-        ['KIT <kbd>K</kbd>','MATCH library: slots for kick/snare/hat/bass/keys/pluck/pad.'],
-        ['BANKS','LAB-01 · CLUB-01 · FILM-01 · HAZE-01 · STEEL-01. Shift+click SOUND to cycle.'],
+        ['KIT <kbd>K</kbd>','MATCH library: hat·rim·snare·clap·tom·kick + bass/keys/pluck/pad per MOOD kit.'],
+        ['BANKS','Each MOOD has its own kit (COLD…BLOOM). Drop samples once — switching MOOD loads that kit.'],
         ['LOAD / drop','Put your WAV/MP3 on a slot (empty slots invite drop). ✕ restores bake. RESET BANK clears all.'],
-        ['FOLDER','Opens src/samples/{BANK}/ in Explorer — drop files named like kick_h.wav.'],
+        ['FOLDER','Opens src/samples/{BANK}/ — hat.wav · rim.wav · snare.wav · clap.wav · tom.wav · kick.wav.'],
         ['Priority','Your drops → optional folder WAV → procedural bake.'],
       ])}
       <div class="g-foot">Optional folder: src/samples/{BANK}/ — see samples README.</div>
@@ -8500,7 +8743,7 @@ function openSettings(){
     <div class="row" id="ws-fs" style="cursor:pointer"><span>FULLSCREEN</span><span>F11</span></div>
     ${asleep?`<div class="row" id="ws-vid" style="cursor:pointer"><span>VOID RENDER OPTS</span><span>AFTER WAKE · V</span></div>`:''}
     <div style="margin-top:12px;color:#5a5a5a;font-size:8px;letter-spacing:.1em;line-height:1.6">
-      MATCH: drop WAV on kit slots or put files in <b>src/samples/{BANK}/</b> (kick_h.wav …).<br>
+      MATCH: drop WAV on kit slots or put files in <b>src/samples/{BANK}/</b> (hat→kick by size).<br>
       Draft autosaves every 8s · DNA v2 keeps tempo, MATCH, splices.
     </div>
   `);
