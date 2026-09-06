@@ -1854,8 +1854,8 @@ function playWakeSound(){
     loadWakeClickBuf().then(()=>{ try{ play(); }catch(_){} });
   }catch(_){}
 }
-// Prefetch so first WAKE click is immediate
-try{ setTimeout(()=>{ try{ loadWakeClickBuf(); }catch(_){} }, 400); }catch(_){}
+// Prefetch after boot settles — don't steal frames from the open animation
+try{ setTimeout(()=>{ try{ if(!wakeBoot) loadWakeClickBuf(); }catch(_){} }, 1600); }catch(_){}
 function makeSoftClipCurve(amount){
   const n=2048, curve=new Float32Array(n);
   const a=Math.max(1.1, amount||2);
@@ -3915,7 +3915,8 @@ function genLattice(dens){
   for(let i=0;i<n;i++) a[order[i]]=1;
   return a;
 }
-function applyMood(i){
+function applyMood(i, opts){
+  opts=opts||{};
   S.mood=i;
   const M=MOODS[i];
   S.bpm=M.bpm; S.swing=M.swing;
@@ -3925,9 +3926,13 @@ function applyMood(i){
   S.lattice=genLattice(e && e.dens!=null ? e.dens : M.dens);
   if(AC) matchSyncFromMood(true);
   else MATCH.bank=matchBankForMood(i);
-  syncUI();
-  syncTempoUI();
-  toast('MOOD '+M.name+(MATCH.on?' · MATCH '+MATCH.bank:''));
+  if(!opts.silent){
+    syncUI();
+    syncTempoUI();
+    toast('MOOD '+M.name+(MATCH.on?' · MATCH '+MATCH.bank:''));
+  }else{
+    try{ syncTempoUI(); }catch(_){}
+  }
 }
 
 /* ═══════════════ RENDER ══════════════════════════════════════ */
@@ -7215,8 +7220,6 @@ function encodeWAV(buffer){
 }
 
 /* ═══════════════ BOOT ════════════════════════════════════════ */
-wakeT0=performance.now();
-wakeBootT0=wakeT0;
 (function hideWakeUiForBoot(){
   const ui=document.getElementById('wake-ui'); if(!ui) return;
   const logo=ui.querySelector('.wake-logo');
@@ -7234,12 +7237,17 @@ wakeBootT0=wakeT0;
 })();
 function layoutWakeCv(force){
   const cv=$('wakecv'); if(!cv) return null;
-  const dpr=Math.min(1.5, window.devicePixelRatio||1);
+  const dpr=Math.min(1.25, window.devicePixelRatio||1);
   const w=window.innerWidth||1, h=window.innerHeight||1;
   if(!force && wakeCtx && wakeW===w && wakeH===h) return {cv, ctx:wakeCtx, w, h};
+  // During boot, skip expensive rebuilds for tiny size jitter (fullscreen settle)
+  if(wakeBoot && !force && wakeCtx && wakeW && wakeH){
+    const dw=Math.abs(w-wakeW), dh=Math.abs(h-wakeH);
+    if(dw<24 && dh<24) return {cv, ctx:wakeCtx, w:wakeW, h:wakeH};
+  }
   cv.width=(w*dpr)|0; cv.height=(h*dpr)|0;
   cv.style.width=w+'px'; cv.style.height=h+'px';
-  wakeCtx=cv.getContext('2d');
+  wakeCtx=cv.getContext('2d', { alpha:false, desynchronized:true });
   wakeCtx.setTransform(dpr,0,0,dpr,0,0);
   wakeW=w; wakeH=h;
   wakePlate=null; // rebuild baked idle plate on resize
@@ -7247,7 +7255,7 @@ function layoutWakeCv(force){
 }
 function wakeDither(ctx,w,h,t,dens){
   ctx.fillStyle='#0e0e0e';
-  const step=16, phase=((t*0.03)|0);
+  const step=20, phase=((t*0.03)|0);
   for(let y=0;y<h;y+=step){
     for(let x=0;x<w;x+=step){
       const hsh=((x*73856093)^(y*19349663)^phase)&255;
@@ -7267,7 +7275,7 @@ function ensureWakePlate(w,h){
   x.fillStyle='#050303'; x.fillRect(0,0,w,h);
   wakeDither(x,w,h,0,0.28);
   x.fillStyle='rgba(220,190,190,.045)';
-  for(let y=0;y<h;y+=2) x.fillRect(0,y,w,1);
+  for(let y=0;y<h;y+=3) x.fillRect(0,y,w,1);
   wakePlateW=w; wakePlateH=h;
   return wakePlate;
 }
@@ -7276,6 +7284,11 @@ function wakeExpoOut(x){ return x>=1?1:1-Math.pow(2,-10*x); }
 function wakeSmooth(a,b,t){
   const u=Math.max(0, Math.min(1, (t-a)/Math.max(1e-6,b-a)));
   return u*u*(3-2*u);
+}
+function wakeSetOp(el, v){
+  if(!el) return;
+  const s=v<=0.01?'0':(v>=0.99?'1':v.toFixed(2));
+  if(el.dataset.wo!==s){ el.dataset.wo=s; el.style.opacity=s; }
 }
 function paintWake(ts){
   try{
@@ -7362,17 +7375,17 @@ function paintWake(ts){
       const oMenu=wakeSmooth(0.66, 0.92, u);
 
       if(logo){
-        logo.style.opacity=String(Math.max(0, oLogo));
+        wakeSetOp(logo, oLogo);
         logo.style.transform='translate(-50%, -50%)';
       }
-      if(word) word.style.opacity=String(oWord);
-      if(sub) sub.style.opacity=String(oSub);
-      if(go) go.style.opacity=String(oGo);
-      if(menu) menu.style.opacity=String(oMenu);
+      wakeSetOp(word, oWord);
+      wakeSetOp(sub, oSub);
+      wakeSetOp(go, oGo);
+      wakeSetOp(menu, oMenu);
       if(below) below.style.pointerEvents=oGo>0.5?'auto':'none';
     }
 
-    if(raw>=0.94){ finishWakeBoot(); return; }
+    if(raw>=1){ finishWakeBoot(ts); return; }
     wakeAnim=requestAnimationFrame(paintWake);
     return;
   }
@@ -7651,7 +7664,7 @@ function paintWake(ts){
     wakeAnim=requestAnimationFrame(paintWake);
   }
 }
-try{ paintWake(0); }catch(err){ try{ console.warn('wake boot', err); }catch(_){} }
+try{ /* wake animation starts after state boot — see startWakeBootAnim */ }catch(err){ try{ console.warn('wake boot', err); }catch(_){} }
 
 // Bind wake controls immediately — must not depend on later boot succeeding
 (function bindWakeControls(){
@@ -7670,28 +7683,50 @@ try{ paintWake(0); }catch(err){ try{ console.warn('wake boot', err); }catch(_){}
   });
 })();
 
+function startWakeBootAnim(){
+  // Bake plate + first layout BEFORE the clock starts so frame 0 isn't a hitch
+  try{
+    layoutWakeCv(true);
+    if(wakeW>1 && wakeH>1) ensureWakePlate(wakeW, wakeH);
+  }catch(_){}
+  wakeT0=performance.now();
+  wakeBootT0=wakeT0;
+  wakeBoot=true;
+  if(wakeAnim){ try{ cancelAnimationFrame(wakeAnim); }catch(_){} }
+  wakeAnim=requestAnimationFrame(function bootFrame(ts){
+    if(!wakeBootT0 || ts < wakeBootT0){ wakeBootT0=ts; wakeT0=ts; }
+    paintWake(ts);
+  });
+}
+
 try{
-S.bodies = [];
-S.lattice = genLattice(EPOCHS[0].dens);
-S.epoch=0; applyMood(1); S.epoch=0;
-applyPrefsToCap();
-ensureHarmony();
-S.form=false;
-MATCH.on=false;
-syncMatchUI();
-syncUI();
-ensureDesktopFullscreen();
-requestAnimationFrame(draw);
-setTimeout(()=>{ ensureDesktopFullscreen(); resize(); layoutWakeCv(true); }, 200);
-setTimeout(resize, 600);
+  // Heavy state while UI is opacity-0 — keep the open anim free of syncUI / toast / Audio
+  S.bodies = [];
+  S.lattice = genLattice(EPOCHS[0].dens);
+  S.epoch=0; applyMood(1, {silent:true}); S.epoch=0;
+  applyPrefsToCap();
+  ensureHarmony();
+  S.form=false;
+  MATCH.on=false;
+  syncMatchUI();
+  syncUI();
+  requestAnimationFrame(draw);
+  // Kick fullscreen in the background — boot anim ignores tiny size jitter
+  try{ ensureDesktopFullscreen(); }catch(_){}
+  startWakeBootAnim();
 }catch(err){
   try{ console.warn('boot', err); }catch(_){}
+  try{ startWakeBootAnim(); }catch(_){}
 }
 window.addEventListener('beforeunload', ()=>{
   try{ autosaveDraft(true); }catch(_){}
   vidCaptureBoost=1;
 });
-window.addEventListener('resize', ()=>{ if(wakeRunning || wakeExit || wakeEnter || wakeBoot) layoutWakeCv(true); });
+window.addEventListener('resize', ()=>{
+  if(!(wakeRunning || wakeExit || wakeEnter || wakeBoot)) return;
+  // Never force-rebuild the wake plate mid-boot — that freezes the open anim
+  layoutWakeCv(!!wakeBoot ? false : true);
+});
 
 function closeWakePanel(){
   const p=$('app-panel')||$('wake-panel'); if(p) p.classList.remove('show');
@@ -8248,12 +8283,13 @@ function returnToMenu(){
   wakeAnim=requestAnimationFrame(paintWake);
   feedLog('return menu');
 }
-function finishWakeBoot(){
+function finishWakeBoot(ts){
   wakeBoot=false;
   wakeRunning=true;
   const ui=document.getElementById('wake-ui');
   if(ui){
-    ui.style.opacity=''; ui.style.transform=''; ui.style.filter='';
+    // Keep explicit full opacity — clearing to '' restarts wakePulse mid-cycle (looks like a dim flash)
+    ui.style.opacity='1'; ui.style.transform=''; ui.style.filter='none';
     ui.style.transformOrigin='';
     const logo=ui.querySelector('.wake-logo');
     const word=ui.querySelector('.wake-word');
@@ -8261,16 +8297,35 @@ function finishWakeBoot(){
     const go=document.getElementById('wake-go');
     const menu=document.getElementById('wake-menu');
     const below=ui.querySelector('.wake-below');
-    if(logo){ logo.style.opacity=''; logo.style.transform=''; }
-    if(word) word.style.opacity='';
-    if(sub) sub.style.opacity='';
-    if(go) go.style.opacity='';
-    if(menu) menu.style.opacity='';
-    if(below) below.style.pointerEvents='';
+    if(logo){
+      logo.style.opacity='1'; logo.style.transform='translate(-50%, -50%)';
+      delete logo.dataset.wo;
+    }
+    if(word){ word.style.opacity='1'; delete word.dataset.wo; }
+    if(sub){ sub.style.opacity='1'; delete sub.dataset.wo; }
+    if(go){
+      // Hold solid until next frame, then let CSS pulse start cleanly at opacity:1
+      go.style.opacity='1';
+      go.style.animation='none';
+      delete go.dataset.wo;
+      requestAnimationFrame(()=>{
+        if(go){ go.style.animation=''; go.style.opacity=''; }
+      });
+    }
+    if(menu){ menu.style.opacity='1'; delete menu.dataset.wo; }
+    if(below) below.style.pointerEvents='auto';
   }
   try{ syncWakeUiPole(); }catch(_){}
-  if(wakeAnim){ try{ cancelAnimationFrame(wakeAnim); }catch(_){} }
-  wakeAnim=requestAnimationFrame(paintWake);
+  // Paint idle frame NOW on the same canvas — never wipe/rebuild (that flashes black)
+  try{
+    wakeIdleAcc=0;
+    paintWake(ts || performance.now());
+  }catch(_){
+    if(wakeAnim){ try{ cancelAnimationFrame(wakeAnim); }catch(_){} }
+    wakeAnim=requestAnimationFrame(paintWake);
+  }
+  // Audio decode off the handoff frame
+  setTimeout(()=>{ try{ loadWakeClickBuf(); }catch(_){} }, 280);
 }
 function finishEnterMenu(){
   wakeEnter=false;
