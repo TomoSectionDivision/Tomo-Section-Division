@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/TomoSectionDivision/Tomo-0.2/releases"><img src="https://img.shields.io/badge/version-0.3.1-8a3030?style=flat-square" alt="0.3.1"></a>
+  <a href="https://github.com/TomoSectionDivision/Tomo-0.3/releases"><img src="https://img.shields.io/badge/version-0.3.1-8a3030?style=flat-square" alt="0.3.1"></a>
   <img src="https://img.shields.io/badge/Tauri-2-24c8db?style=flat-square&logo=tauri&logoColor=white" alt="Tauri 2">
   <img src="https://img.shields.io/badge/Windows-x64-0078d4?style=flat-square&logo=windows&logoColor=white" alt="Windows">
   <img src="https://img.shields.io/badge/data-local%20only-3ff0a5?style=flat-square" alt="local only">
@@ -30,7 +30,7 @@
 
 Najprostsza droga — bez kompilacji:
 
-1. Wejdź w **[Releases](https://github.com/TomoSectionDivision/Tomo-0.2/releases)**
+1. Wejdź w **[Releases](https://github.com/TomoSectionDivision/Tomo-0.3/releases)**
 2. Pobierz najnowszy `TOMO_*_x64-setup.exe`
 3. Zainstaluj → uruchom **Tomo** z menu Start
 
@@ -43,8 +43,8 @@ Po restarcie Windowsa biblioteka, draft i sample zostają na tym komputerze.
 ## Uruchomienie z źródła
 
 ```bash
-git clone https://github.com/TomoSectionDivision/Tomo-0.2.git
-cd Tomo-0.2
+git clone https://github.com/TomoSectionDivision/Tomo-0.3.git
+cd Tomo-0.3
 npm install
 npm run dev
 ```
