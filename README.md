@@ -1,50 +1,113 @@
-# TOMO (desktop)
+<p align="center">
+  <img src="src-tauri/icons/128x128.png" alt="TOMO" width="88" height="88">
+</p>
 
-Natywna aplikacja desktopowa **TOMO** — Tauri 2 na Windows.
+<h1 align="center">TOMO</h1>
 
-Wersja: **0.3.1**
+<p align="center">
+  <strong>Section Division</strong> — natywny instrument desktopowy na Windows<br>
+  Void · meridian · bodies · CAP packs · dane tylko na Twoim PC
+</p>
 
-## Start (dev)
+<p align="center">
+  <a href="https://github.com/TomoSectionDivision/Tomo-0.2/releases"><img src="https://img.shields.io/badge/version-0.3.1-8a3030?style=flat-square" alt="0.3.1"></a>
+  <img src="https://img.shields.io/badge/Tauri-2-24c8db?style=flat-square&logo=tauri&logoColor=white" alt="Tauri 2">
+  <img src="https://img.shields.io/badge/Windows-x64-0078d4?style=flat-square&logo=windows&logoColor=white" alt="Windows">
+  <img src="https://img.shields.io/badge/data-local%20only-3ff0a5?style=flat-square" alt="local only">
+</p>
+
+<p align="center">
+  <a href="#instalacja-releases">Instalacja</a> ·
+  <a href="#uruchomienie-z-źródła">Źródło</a> ·
+  <a href="#build-instalatora">Build</a> ·
+  <a href="#dane-lokalne">Dane</a> ·
+  <a href="#instrument">Instrument</a>
+</p>
+
+---
+
+## Instalacja (Releases)
+
+Najprostsza droga — bez kompilacji:
+
+1. Wejdź w **[Releases](https://github.com/TomoSectionDivision/Tomo-0.2/releases)**
+2. Pobierz najnowszy `TOMO_*_x64-setup.exe`
+3. Zainstaluj → uruchom **Tomo** z menu Start
+
+Po restarcie Windowsa biblioteka, draft i sample zostają na tym komputerze.
+
+> Brak pliku w Releases? Zbuduj instalator lokalnie (sekcja [Build](#build-instalatora)) albo poczekaj na publikację.
+
+---
+
+## Uruchomienie z źródła
 
 ```bash
-cd D:\BursztynDesktop\tomo-desktop
+git clone https://github.com/TomoSectionDivision/Tomo-0.2.git
+cd Tomo-0.2
 npm install
 npm run dev
 ```
 
-Okno otwiera się fullscreen. `F11` = windowed / fullscreen.
+**Wymagania (Windows):** Node.js · Rust · [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/)
 
-## Instalator (release, Windows)
+Okno startuje w fullscreen · `F11` przełącza windowed / fullscreen.
+
+---
+
+## Build instalatora
+
+Z katalogu sklonowanego repo:
 
 ```bash
 npm install
 npm run build:win
 ```
 
-Instalator NSIS:
+Gotowy NSIS znajdziesz w:
 
-`src-tauri/target/release/bundle/nsis/TOMO_0.3.1_x64-setup.exe`
+```text
+src-tauri/target/release/bundle/nsis/TOMO_0.3.1_x64-setup.exe
+```
 
-Zainstaluj → skrót w menu Start. Po restarcie Windowsa dane zostają lokalnie:
+(ścieżka względem katalogu projektu — u Ciebie tam, gdzie sklonowałeś repo)
+
+---
+
+## Dane lokalne
+
+Tomo **nie wysyła** sectionów do chmury. Wszystko zostaje na maszynie użytkownika.
 
 | Dane | Gdzie |
 |------|--------|
-| Section library + miniatury | IndexedDB w profilu WebView |
+| Section library + miniatury | IndexedDB (profil WebView aplikacji) |
 | Autosave draft | localStorage |
-| MATCH user samples | IndexedDB |
-| CAP / DNA↓ pliki | `Downloads/TOMO/{session}/` (CAP) · Downloads (DNA↓ fallback) |
+| MATCH — własne sample | IndexedDB |
+| CAP packs | folder Pobrane → `TOMO/{session}/` |
+| DNA↓ | folder Pobrane |
 
-To **nie jest chmura** — wszystko na tym PC (`127.0.0.1` w WebView = lokalnie).
+---
 
-## Co jest w środku
+## Instrument
 
-- Void instrument + SEED / FORM / DUAL  
-- SYNTH ↔ MATCH + master glue  
-- CAP pack → `Downloads/TOMO/{session}/`  
-- Tempo (BPM + swing) + melody bass  
-- DNA v2 (MATCH, swing, splices, wet)  
-- LIVE: DUAL / KIT / LIB / SYNTH · PREFS (CAP defaults, tut reset)  
-- Perform mode (`P`)  
-- Section library (`L`) z fork / rename  
+| | |
+|---|---|
+| **Void** | Bodies na meridianie · SEED · FORM · DUAL |
+| **Sound** | SYNTH ↔ MATCH · master glue · KIT |
+| **Capture** | CAP pack → Pobrane/`TOMO/{session}/` |
+| **Time** | TEMPO (BPM + swing) · PROG / MOTIF / BASS |
+| **DNA** | v2 — MATCH, swing, splices, wet |
+| **LIVE** | PERF · FORM · SEED · CAP · DUAL · KIT · LIB · SYNTH/MATCH |
+| **MORE…** | PREFS · REC · VID · DNA · reset tutorialu |
+| **Perform** | klawisz `P` — live deck |
+| **Library** | klawisz `L` — fork / rename / thumbs |
 
-UI: `src/index.html`
+Główny UI: [`src/index.html`](src/index.html)
+
+---
+
+## Licencja / kontakt
+
+Repo publiczne organizacji **TomoSectionDivision**.
+
+Pytania: [tomo.contact@proton.me](mailto:tomo.contact@proton.me)

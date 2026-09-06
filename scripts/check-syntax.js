@@ -1,5 +1,6 @@
 const fs = require('fs');
-const s = fs.readFileSync('D:/BursztynDesktop/tomo-desktop/src/index.html', 'utf8');
+const path = require('path');
+const s = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.html'), 'utf8');
 const start = s.indexOf('<script>');
 const end = s.lastIndexOf('</script>');
 if (start < 0 || end < 0) {

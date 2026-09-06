@@ -1,5 +1,6 @@
 const fs = require('fs');
-const html = fs.readFileSync('D:/BursztynDesktop/tomo-desktop/src/index.html', 'utf8');
+const path = require('path');
+const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.html'), 'utf8');
 const ids = [...html.matchAll(/id="([^"]+)"/g)].map((m) => m[1]);
 const set = new Set(ids);
 const script = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
