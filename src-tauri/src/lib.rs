@@ -142,14 +142,8 @@ fn open_export_folder(app: tauri::AppHandle, session: String) -> Result<String, 
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            use tauri::Manager;
-            if let Some(win) = app.get_webview_window("main") {
-                let _ = win.unminimize();
-                let _ = win.set_focus();
-                let _ = win.show();
-            }
-        }))
+        // single-instance disabled: it was focusing an older installed exe
+        // instead of the build / `tauri dev` you just launched.
         .invoke_handler(tauri::generate_handler![
             open_match_samples_dir,
             write_export_file,

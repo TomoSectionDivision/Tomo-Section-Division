@@ -32,15 +32,15 @@ src/samples/{BANK}/{slot}.wav
 
 Slots: `hat` `rim` `snare` `clap` `tom` `kick` `bass` `keys` `pluck` `pad`
 
-PULSE SIZE bands (0–36, six bands of 6):
+PULSE SIZE bands (0–36, six bands of 6) — same mass map for every substance:
 
-| SIZE | Drum |
-|------|------|
-| 0–6 | HAT |
-| 6–12 | RIM |
-| 12–18 | SNARE |
-| 18–24 | CLAP |
-| 24–30 | TOM |
-| 30–36 | KICK |
+| SIZE | PULSE | FOUNDATION | COLOR | TENSION | AIR |
+|------|-------|------------|-------|---------|-----|
+| 0–6 | HAT | SUB | SOFT | MUTE | HUSH |
+| 6–12 | RIM | WOOF | WARM | SOFT | FOG |
+| 12–18 | SNARE | ROUND | BRIGHT | SNAP | BLOOM |
+| 18–24 | CLAP | WARM | BELL | LEAD | WASH |
+| 24–30 | TOM | GROWL | GLASS | METAL | SHINE |
+| 30–36 | KICK | SLAP | HARD | EDGE | ICE |
 
 Priority: **user KIT drop > folder WAV > procedural bake**
