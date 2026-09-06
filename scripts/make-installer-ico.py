@@ -1,4 +1,8 @@
-"""Build a BMP-based .ico for NSIS (PNG-in-ICO often fails as exe icon)."""
+"""Build BMP-based .ico files for Windows shell / NSIS.
+
+PNG-in-ICO from `tauri icon` often embeds poorly into .exe resources;
+NSIS + Explorer are happier with classic BMP DIBs.
+"""
 from __future__ import annotations
 
 import struct
@@ -8,7 +12,10 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src-tauri" / "icons" / "icon.png"
-OUT = ROOT / "src-tauri" / "icons" / "installer.ico"
+OUTS = [
+    ROOT / "src-tauri" / "icons" / "installer.ico",
+    ROOT / "src-tauri" / "icons" / "icon.ico",
+]
 SIZES = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
 
 
@@ -54,12 +61,10 @@ def rgba_to_bmp_dib(im: Image.Image) -> bytes:
     return header + xor + and_mask
 
 
-def main() -> None:
-    img = Image.open(SRC).convert("RGBA")
-    imgs = [img.resize(s, Image.Resampling.LANCZOS) for s in SIZES]
+def write_ico(path: Path, imgs: list[Image.Image]) -> None:
     entries: list[tuple[int, int, int, int]] = []
     images_data: list[bytes] = []
-    offset = 6 + 16 * len(SIZES)
+    offset = 6 + 16 * len(imgs)
     for im in imgs:
         data = rgba_to_bmp_dib(im)
         w, h = im.size
@@ -68,21 +73,21 @@ def main() -> None:
         offset += len(data)
 
     buf = bytearray()
-    buf += struct.pack("<HHH", 0, 1, len(SIZES))
+    buf += struct.pack("<HHH", 0, 1, len(imgs))
     for w, h, size, off in entries:
         buf += struct.pack("<BBBBHHII", w, h, 0, 0, 1, 32, size, off)
     for data in images_data:
         buf += data
 
-    OUT.write_bytes(buf)
-    print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")
-    b = OUT.read_bytes()
-    n = struct.unpack_from("<H", b, 4)[0]
-    for i in range(n):
-        o = 6 + i * 16
-        w, h = b[o], b[o + 1]
-        size, off = struct.unpack_from("<II", b, o + 8)
-        print(f"  {i}: {w}x{h} size={size} dib_hdr={b[off]:02X}{b[off+1]:02X}")
+    path.write_bytes(buf)
+    print(f"wrote {path} ({path.stat().st_size} bytes)")
+
+
+def main() -> None:
+    img = Image.open(SRC).convert("RGBA")
+    imgs = [img.resize(s, Image.Resampling.LANCZOS) for s in SIZES]
+    for out in OUTS:
+        write_ico(out, imgs)
 
 
 if __name__ == "__main__":
